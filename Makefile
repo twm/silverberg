@@ -3,7 +3,7 @@ SCRIPTSDIR=scripts
 PYTHONLINT=${SCRIPTSDIR}/python-lint.py
 PYDIRS=${CODEDIR} ${SCRIPTSDIR}
 UNITTESTS ?= ${CODEDIR}/test
-
+THRIFT_COMPILER ?= $(shell which thrift)
 test:   unit
 
 lint:
@@ -14,6 +14,9 @@ unit:
 
 coverage:
 	PYTHONPATH=".:${PYTHONPATH}" coverage run --source=${CODEDIR} --branch `which trial` ${CODEDIR}/test && coverage html -d _trial_coverage --omit="${CODEDIR}/test/*"
+
+thrift:
+	${THRIFT_COMPILER} -out silverberg/ --gen py:twisted interface/cassandra.thrift	
 
 clean:
 	find . -name '*.pyc' -delete
