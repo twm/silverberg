@@ -1,12 +1,13 @@
 CODEDIR=silverberg
 SCRIPTSDIR=scripts
-PYTHONLINT=${SCRIPTSDIR}/python-lint.py
+PYTHONLINT=pep8 --exclude=cassandra
 PYDIRS=${CODEDIR} ${SCRIPTSDIR}
 UNITTESTS ?= ${CODEDIR}/test
 THRIFT_COMPILER ?= $(shell which thrift)
 test:   unit
 
 lint:
+    
 	${PYTHONLINT} ${PYDIRS}
 
 unit:
