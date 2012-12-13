@@ -23,6 +23,10 @@ from twisted.internet.defer import Deferred, succeed
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
+from silverberg.marshal import prepare
+
+# used to parse the CF name out of a select statement.
+selectRe = r"/\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)/im;"
 
 class _LossNotifyingWrapperProtocol(Protocol):
     def __init__(self, wrapped, on_connectionLost):
@@ -58,7 +62,7 @@ class _ThriftClientFactory(Factory):
 class CassandraClient(object):
     _state = 'NOT_CONNECTED'
 
-    def __init__(self, cass_endpoint, keyspace, user = None, password = None):
+    def __init__(self, cass_endpoint, keyspace, user=None, password=None):
         self._cass_endpoint = cass_endpoint
         self._client_factory = _ThriftClientFactory(
             Cassandra.Client,
@@ -68,15 +72,45 @@ class CassandraClient(object):
         self._keyspace = keyspace
         self._user = user
         self._password = password
-
+        self._validators = {}
+        
     def _notify_connected(self):
         d = Deferred()
         self._waiting.append(d)
         return d
 
+    def _connection_learn(self, client):
+        def _learn(keyspaceDef):
+            for cf_def in keyspaceDef.cf_defs:
+                specific_validators = {}
+                for col_meta in cf_def.column_metadata:
+                    specific_validators[col_meta.name] = col_meta.validation_class
+                self._validators[cf_def.name] = {
+                "key": cf_def.key_validation_class,
+                "comparator": cf_def.comparator_type,
+                "defaultValidator": cf_def.default_validation_class,
+                "specific_validators": specific_validators
+                }
+            return client
+        d = self._client.client.describe_keyspace(self._keyspace)
+        return d.addCallback(_learn)
+
+    def _connection_set_keyspace(self, client):
+        d = self._client.client.set_keyspace(self._keyspace)
+        return d.addCallback(lambda _: client)
+
+    def _connection_login(self, client):
+        creds = {'user': self._user, 'password': self._password}
+        authreq = ttypes.AuthenticationRequest(creds)
+        d = self._client.client.login(authreq)
+        return d.addCallback(lambda _: client)
+
+    def _connection_ready(self, client):
+        self._client = client.wrapped
+        return self._client
+
     def _connection_made(self, client):
         self._state = 'CONNECTED'
-        self._client = client.wrapped
         while self._waiting:
             d = self._waiting.pop(0)
             d.callback(self._client)
@@ -97,12 +131,18 @@ class CassandraClient(object):
             reason,
             "Could not connect to cassandra server: {0}".format(
                 self._cass_endpoint))
+        return reason
 
     def _get_client(self):
         if self._state == 'NOT_CONNECTED':
             self._state = 'CONNECTING'
             d = self._cass_endpoint.connect(self._client_factory)
-            d.addCallbacks(self._connection_made, self._connection_failed)
+            d.addCallbacks(self._connection_ready, self._connection_failed)
+            if self._user is not None:
+                d.addCallback(self._connection_login)
+            d.addCallback(self._connection_learn)
+            d.addCallback(self._connection_set_keyspace)
+            d.addCallback(self._connection_made)
             return d
         elif self._state == 'CONNECTING':
             return self._notify_connected()
@@ -110,9 +150,29 @@ class CassandraClient(object):
             return succeed(self._client)
 
     def describe_version(self):
-        def _log(client):
+        def _vers(client):
             return client.client.describe_version()
 
         d = self._get_client()
-        d.addCallback(_log)
+        d.addCallback(_vers)
+        return d
+        
+    def execute(self, query, args):
+        def _execute(client):
+            return client.client.execute_cql_query(prepare(
+                query, args), ttypes.Compression.NONE)
+
+        def _proc_results(result):
+            if result.type == ttypes.CqlResultType.ROWS:
+                # TODO: Take the learned keyspace info 
+                # and use it to proc results
+                return result.rows
+            elif result.type is ttypes.CqlResultType.INT:
+                return result.num
+            else:
+                return None
+
+        d = self._get_client()
+        d.addCallback(_execute)
+        d.addCallback(_proc_results)
         return d
