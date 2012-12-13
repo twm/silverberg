@@ -37,10 +37,11 @@ class MockClientTests(TestCase):
 
         return results[0]
 
-    def assertFailed(self, d):
+    def assertFailed(self, d, errorTypes):
         results = []
         d.addErrback(lambda r: results.append(r))
         self.assertEqual(len(results), 1)
+        self.assertNotEqual(results[0].check(errorTypes), None)
 
     def test_login(self):
             
@@ -61,7 +62,7 @@ class MockClientTests(TestCase):
         client = CassandraClient(self.endpoint,'blah')
 
         d = client.describe_version()
-        self.assertFailed(d)
+        self.assertFailed(d, ttypes.NotFoundException)
         self.client_proto.client.set_keyspace.assert_called_once_with('blah')
 
     def test_describe_version(self):
