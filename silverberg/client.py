@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from thrift.transport import TTwisted
-from thrift.protocol import TBinaryProtocol
-
-from twisted.python import log
-
-from twisted.internet.protocol import Factory, Protocol
-from twisted.internet.defer import Deferred, succeed
-
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
@@ -27,62 +19,26 @@ from silverberg.marshal import prepare, unmarshallers
 
 import re
 
+from silverberg.thrift_client import OnDemandThriftClient
+
 # used to parse the CF name out of a select statement.
 selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
 
 
-class _LossNotifyingWrapperProtocol(Protocol):
-    def __init__(self, wrapped, on_connectionLost):
-        self.wrapped = wrapped
-        self._on_connectionLost = on_connectionLost
-
-    def dataReceived(self, data):
-        self.wrapped.dataReceived(data)
-
-    def connectionLost(self, reason):
-        self.wrapped.connectionLost(reason)
-        self._on_connectionLost(reason)
-
-    def connectionMade(self):
-        self.wrapped.makeConnection(self.transport)
-
-
-class _ThriftClientFactory(Factory):
-    def __init__(self, client_class, on_connectionLost):
-        self._client_class = client_class
-        self._on_connectionLost = on_connectionLost
-
-    def buildProtocol(self, addr):
-        pfactory = TBinaryProtocol.TBinaryProtocolFactory()
-        p = TTwisted.ThriftClientProtocol(self._client_class, pfactory)
-
-        wrapper = _LossNotifyingWrapperProtocol(
-            p, self._on_connectionLost)
-
-        return wrapper
-
 
 class CassandraClient(object):
-    _state = 'NOT_CONNECTED'
-
     def __init__(self, cass_endpoint, keyspace, user=None, password=None):
-        self._cass_endpoint = cass_endpoint
-        self._client_factory = _ThriftClientFactory(
+        self._client = OnDemandThriftClient(
             Cassandra.Client,
-            self._connection_lost)
-        self._client = None
-        self._waiting = []
+            cass_endpoint
+        )
+
         self._keyspace = keyspace
         self._user = user
         self._password = password
         self._validators = {}
 
-    def _notify_connected(self):
-        d = Deferred()
-        self._waiting.append(d)
-        return d
-
-    def _connection_learn(self, client):
+    def _learn(self, client):
         def _learn(keyspaceDef):
             for cf_def in keyspaceDef.cf_defs:
                 sp_val = {}
@@ -95,66 +51,32 @@ class CassandraClient(object):
                     "specific_validators": sp_val
                 }
             return client
-        d = self._client.client.describe_keyspace(self._keyspace)
+        d = client.describe_keyspace(self._keyspace)
         return d.addCallback(_learn)
 
-    def _connection_set_keyspace(self, client):
-        d = self._client.client.set_keyspace(self._keyspace)
+    def _set_keyspace(self, client):
+        d = client.set_keyspace(self._keyspace)
         return d.addCallback(lambda _: client)
 
-    def _connection_login(self, client):
+    def _login(self, client):
         creds = {'user': self._user, 'password': self._password}
         authreq = ttypes.AuthenticationRequest(creds)
-        d = self._client.client.login(authreq)
-        return d.addCallback(lambda _: client)
-
-    def _connection_ready(self, client):
-        self._client = client.wrapped
-        return self._client
-
-    def _connection_made(self, client):
-        self._state = 'CONNECTED'
-        while self._waiting:
-            d = self._waiting.pop(0)
-            d.callback(self._client)
-        return self._client
-
-    def _connection_lost(self, reason):
-        self._state = 'NOT_CONNECTED'
-        self._client = None
-        log.err(
-            reason,
-            "Connection lost to cassandra server: {0}".format(
-                self._cass_endpoint))
-
-    def _connection_failed(self, reason):
-        self._state = 'NOT_CONNECTED'
-        self._client = None
-        log.err(
-            reason,
-            "Could not connect to cassandra server: {0}".format(
-                self._cass_endpoint))
-        return reason
+        d = client.login(authreq)
+        d.addCallback(lambda _: client)
+        return d
 
     def _get_client(self):
-        if self._state == 'NOT_CONNECTED':
-            self._state = 'CONNECTING'
-            d = self._cass_endpoint.connect(self._client_factory)
-            d.addCallbacks(self._connection_ready, self._connection_failed)
-            if self._user is not None:
-                d.addCallback(self._connection_login)
-            d.addCallback(self._connection_learn)
-            d.addCallback(self._connection_set_keyspace)
-            d.addCallback(self._connection_made)
-            return d
-        elif self._state == 'CONNECTING':
-            return self._notify_connected()
-        elif self._state == 'CONNECTED':
-            return succeed(self._client)
+        d = self._client.get_client()
+        if self._user and self._password:
+            d.addCallback(self._login)
+
+        d.addCallback(self._set_keyspace)
+        d.addCallback(self._learn)
+        return d
 
     def describe_version(self):
         def _vers(client):
-            return client.client.describe_version()
+            return client.describe_version()
 
         d = self._get_client()
         d.addCallback(_vers)
@@ -205,7 +127,7 @@ class CassandraClient(object):
 
     def execute(self, query, args):
         def _execute(client):
-            return client.client.execute_cql_query(prepare(
+            return client.execute_cql_query(prepare(
                 query, args), ttypes.Compression.NONE)
 
         def _proc_results(result):
