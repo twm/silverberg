@@ -4,6 +4,7 @@ PYTHONLINT=pep8 --exclude=cassandra
 PYDIRS=${CODEDIR} ${SCRIPTSDIR}
 UNITTESTS ?= ${CODEDIR}/test
 THRIFT_COMPILER ?= $(shell which thrift)
+DOCDIR=doc
 test:   unit
 
 lint:
@@ -19,7 +20,18 @@ coverage:
 thrift:
 	${THRIFT_COMPILER} -out silverberg/ --gen py:twisted interface/cassandra.thrift	
 
-clean:
+docs: cleandocs
+	cp -r ${DOCDIR} _builddoc
+	sphinx-apidoc -F -T -o _builddoc ${CODEDIR}
+	PYTHONPATH=".:${PYTHONPATH}" sphinx-build -b html _builddoc htmldoc
+	rm -rf _builddoc
+
+cleandocs:
+	rm -rf _builddoc
+	rm -rf htmldoc
+
+
+clean: cleandocs
 	find . -name '*.pyc' -delete
 	find . -name '.coverage' -delete
 	find . -name '_trial_coverage' -print0 | xargs rm -rf
