@@ -208,8 +208,8 @@ class CassandraClient(object):
                 query, args), ttypes.Compression.NONE)
 
         def _proc_results(result):
-            cfname = selectRe.match(query).group(1)
             if result.type == ttypes.CqlResultType.ROWS:
+                cfname = selectRe.match(query).group(1)
                 return self._unmarshal_result(cfname, result.rows)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num

@@ -173,6 +173,30 @@ class MockClientTests(TestCase):
         self.client_proto.client.set_keyspace.assert_called_once_with('blah')
         self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
+    def test_cql_insert(self):
+        expected=None
+
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
+        client = CassandraClient(self.endpoint,'blah')
+
+        d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'",{})
+        self.assertEqual(self.assertFired(d), expected)
+        self.client_proto.client.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'", 2)
+        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+
+    def test_cql_insert_vars(self):
+        expected=None
+
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
+        client = CassandraClient(self.endpoint,'blah')
+
+        d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = :val WHERE KEY='frr'",{"val":1234})
+        self.assertEqual(self.assertFired(d), expected)
+        self.client_proto.client.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1234 WHERE KEY='frr'", 2)
+        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        
 
 class FaultTestCase(TestCase):
     def setUp(self):
