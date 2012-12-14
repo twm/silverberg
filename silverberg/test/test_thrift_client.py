@@ -188,7 +188,6 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.assertIdentical(self.assertFired(d1), None)
 
 
-
 class LossNotifyingWrapperProtocolTests(BaseTestCase):
     def setUp(self):
         self.wrapped = mock.Mock(Protocol)
@@ -225,5 +224,3 @@ class ThriftClientFactoryTests(BaseTestCase):
         protocol = self.factory.buildProtocol(mock.Mock())
 
         self.assertIsInstance(protocol, _LossNotifyingWrapperProtocol)
-
-
