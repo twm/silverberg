@@ -185,7 +185,8 @@ class CassandraClient(object):
         for raw_row in raw_rows:
             cols = []
             #as it turns out, you can have multiple cols with the same
-            #name.
+            #name, ergo, we're passing back an array instead of a hash
+            #keyed by key name
             key = raw_row.key
             if validator is not None:
                 key = _unmarshal_val(validator['key'],raw_row.key)

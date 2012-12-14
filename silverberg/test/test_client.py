@@ -31,10 +31,10 @@ class MockClientTests(TestCase):
 
     def assertFired(self, d):
         results = []
-        def print_error(e):
-            print e
+        def throw_error(e):
+            e.raiseException()
         d.addCallback(lambda r: results.append(r))
-        d.addErrback(print_error)
+        d.addErrback(throw_error)
         self.assertEqual(len(results), 1)
 
         return results[0]
@@ -154,6 +154,22 @@ class MockClientTests(TestCase):
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), expected)
         self.client_proto.client.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        
+    def test_cql_array_deserial(self):
+        expected=[
+                 {"cols": 
+                          [{"name": "fff", "timestamp": None, 'ttl': None, "value": 1222}], 
+                  "key": "blah"}]
+
+        mockrow=[ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows = mockrow)
+        client = CassandraClient(self.endpoint,'blah')
+
+        d = client.execute("SELECT * FROM blah;", {})
+        self.assertEqual(self.assertFired(d), expected)
+        self.client_proto.client.execute_cql_query.assert_called_once_with("SELECT * FROM blah;", 2)
         self.client_proto.client.set_keyspace.assert_called_once_with('blah')
         self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
