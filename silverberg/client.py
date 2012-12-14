@@ -28,7 +28,8 @@ from silverberg.marshal import prepare, unmarshallers
 import re
 
 # used to parse the CF name out of a select statement.
-selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)",re.I | re.M)
+selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
+
 
 class _LossNotifyingWrapperProtocol(Protocol):
     def __init__(self, wrapped, on_connectionLost):
@@ -75,7 +76,7 @@ class CassandraClient(object):
         self._user = user
         self._password = password
         self._validators = {}
-        
+
     def _notify_connected(self):
         d = Deferred()
         self._waiting.append(d)
@@ -84,14 +85,14 @@ class CassandraClient(object):
     def _connection_learn(self, client):
         def _learn(keyspaceDef):
             for cf_def in keyspaceDef.cf_defs:
-                specific_validators = {}
+                sp_val = {}
                 for col_meta in cf_def.column_metadata:
-                    specific_validators[col_meta.name] = col_meta.validation_class
+                    sp_val[col_meta.name] = col_meta.validation_class
                 self._validators[cf_def.name] = {
-                "key": cf_def.key_validation_class,
-                "comparator": cf_def.comparator_type,
-                "defaultValidator": cf_def.default_validation_class,
-                "specific_validators": specific_validators
+                    "key": cf_def.key_validation_class,
+                    "comparator": cf_def.comparator_type,
+                    "defaultValidator": cf_def.default_validation_class,
+                    "specific_validators": sp_val
                 }
             return client
         d = self._client.client.describe_keyspace(self._keyspace)
@@ -158,30 +159,30 @@ class CassandraClient(object):
         d = self._get_client()
         d.addCallback(_vers)
         return d
-        
+
     def _unmarshal_result(self, cfname, raw_rows):
         rows = []
         if cfname not in self._validators:
-            validator = None;
+            validator = None
         else:
             validator = self._validators[cfname]
 
         def _unmarshal_val(type, val):
-            if type == None:
+            if type is None:
                 return val
             elif type in unmarshallers:
                 return unmarshallers[type](val)
             else:
                 return val
-                
+
         def _find_specific(col):
-            if validator == None:
+            if validator is None:
                 return None
             elif col in validator['specific_validators']:
                 return validator['specific_validators'][col]
             else:
                 return validator['defaultValidator']
-                
+
         for raw_row in raw_rows:
             cols = []
             #as it turns out, you can have multiple cols with the same
@@ -189,10 +190,10 @@ class CassandraClient(object):
             #keyed by key name
             key = raw_row.key
             if validator is not None:
-                key = _unmarshal_val(validator['key'],raw_row.key)
+                key = _unmarshal_val(validator['key'], raw_row.key)
             for raw_col in raw_row.columns:
                 specific = _find_specific(raw_col.name)
-                temp_col = {"timestamp" : raw_col.timestamp, 
+                temp_col = {"timestamp": raw_col.timestamp,
                             "name": raw_col.name,
                             "ttl": raw_col.ttl,
                             "value": _unmarshal_val(specific, raw_col.value)}
@@ -201,7 +202,7 @@ class CassandraClient(object):
                 {"key": key, "cols": cols}
             )
         return rows
-        
+
     def execute(self, query, args):
         def _execute(client):
             return client.client.execute_cql_query(prepare(
