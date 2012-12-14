@@ -17,8 +17,9 @@ from collections import deque
 from thrift.transport import TTwisted
 from thrift.protocol import TBinaryProtocol
 
-from twisted.internet.protocol import Protocol, Factory
+from twisted.internet.error import ConnectionDone
 from twisted.internet.defer import succeed, Deferred
+from twisted.internet.protocol import Protocol, Factory
 
 from twisted.python import log
 from twisted.python.constants import NamedConstant, Names
@@ -62,7 +63,7 @@ class _State(Names):
 
 
 class OnDemandThriftClient(object):
-    def __init__(self, client_class, endpoint):
+    def __init__(self, endpoint, client_class):
         self._endpoint = endpoint
         self._factory = _ThriftClientFactory(client_class,
                                              self._connection_lost)
@@ -77,9 +78,12 @@ class OnDemandThriftClient(object):
         return d
 
     def _connection_lost(self, reason):
-        log.err(reason,
-                "Lost current connection, reconnecting on demand.",
-                system=self.__class__.__name__)
+        self._state = _State.NOT_CONNECTED
+
+        if not reason.check(ConnectionDone):
+            log.err(reason,
+                    "Lost current connection, reconnecting on demand.",
+                    system=self.__class__.__name__)
 
     def _connection_made(self, wrapper):
         self._state = _State.CONNECTED
@@ -117,6 +121,9 @@ class OnDemandThriftClient(object):
         if self._state == _State.CONNECTED:
             return succeed(self._current_client)
         elif self._state == _State.NOT_CONNECTED:
-            return self._connect()
-        elif self._state == _State.CONNECTING:
+            d = self._notify_on_connect()
+            self._connect()
+            return d
+        else:
+            assert self._state == _State.CONNECTING
             return self._notify_on_connect()

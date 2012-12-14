@@ -11,18 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from twisted.trial.unittest import TestCase
-from twisted.internet import defer, reactor
 import mock
+
+from twisted.internet import defer, reactor
+from twisted.internet.endpoints import TCP4ClientEndpoint
 
 from silverberg.client import CassandraClient
 
-from twisted.internet.endpoints import TCP4ClientEndpoint
-
 from silverberg.cassandra import ttypes
 
+from silverberg.test.util import BaseTestCase
 
-class MockClientTests(TestCase):
+
+class MockClientTests(BaseTestCase):
     def setUp(self):
         self.endpoint = mock.Mock()
         self.client_proto = mock.Mock()
@@ -220,7 +221,7 @@ class MockClientTests(TestCase):
         self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
 
-class FaultTestCase(TestCase):
+class FaultTestCase(BaseTestCase):
     def setUp(self):
         self.client = CassandraClient(TCP4ClientEndpoint(reactor, '127.0.0.1', 9160),'blah')
 
