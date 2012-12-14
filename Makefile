@@ -1,15 +1,15 @@
 CODEDIR=silverberg
 SCRIPTSDIR=scripts
-PYTHONLINT=pep8 --exclude=cassandra
 PYDIRS=${CODEDIR} ${SCRIPTSDIR}
 UNITTESTS ?= ${CODEDIR}/test
 THRIFT_COMPILER ?= $(shell which thrift)
 DOCDIR=doc
-test:   unit
+
+test: unit
 
 lint:
-
-	${PYTHONLINT} ${PYDIRS}
+	find ${PYDIRS} -not -path '*/cassandra/*' -and -name '*.py' | xargs pyflakes
+	pep8 --exclude=cassandra --max-line-length=105 ${PYDIRS}
 
 unit:
 	PYTHONPATH=".:${PYTHONPATH}" trial --random 0 ${UNITTESTS}
@@ -29,7 +29,6 @@ docs: cleandocs
 cleandocs:
 	rm -rf _builddoc
 	rm -rf htmldoc
-
 
 clean: cleandocs
 	find . -name '*.pyc' -delete
