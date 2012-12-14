@@ -25,12 +25,6 @@ import cql
 
 __all__ = ['prepare', 'marshal', 'unmarshal_noop', 'unmarshallers']
 
-if hasattr(struct, 'Struct'):  # new in Python 2.5
-    _have_struct = True
-    _long_packer = struct.Struct('>q')
-else:
-    _have_struct = False
-
 _param_re = re.compile(r"(?<!strategy_options)(:[a-zA-Z_][a-zA-Z0-9_]*)", re.M)
 
 BYTES_TYPE = "org.apache.cassandra.db.marshal.BytesType"
@@ -76,12 +70,11 @@ def unmarshal_int(bytestr):
     return decode_bigint(bytestr)
 
 
-if _have_struct:
-    def unmarshal_long(bytestr):
-        return _long_packer.unpack(bytestr)[0]
-else:
-    def unmarshal_long(bytestr):
-        return struct.unpack(">q", bytestr)[0]
+_long_packer = struct.Struct('>q')
+
+
+def unmarshal_long(bytestr):
+    return _long_packer.unpack(bytestr)[0]
 
 
 def unmarshal_uuid(bytestr):

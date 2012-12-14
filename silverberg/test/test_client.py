@@ -13,8 +13,7 @@
 # limitations under the License.
 import mock
 
-from twisted.internet import defer, reactor
-from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet import defer
 
 from silverberg.client import CassandraClient
 
