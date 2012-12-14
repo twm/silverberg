@@ -15,11 +15,19 @@
 import mock
 
 from twisted.internet.defer import Deferred
+from twisted.internet.protocol import Protocol
 from twisted.internet.error import ConnectError, ConnectionLost, ConnectionDone
 
 from twisted.python.failure import Failure
 
-from silverberg.thrift_client import OnDemandThriftClient
+from thrift.transport import TTwisted
+
+from silverberg.thrift_client import (
+    OnDemandThriftClient,
+    _LossNotifyingWrapperProtocol,
+    _ThriftClientFactory
+)
+
 from silverberg.test.util import BaseTestCase
 
 
@@ -100,6 +108,8 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.assertTrue(f.check(_TestConnectError))
 
+        self.assertFailed(self.connect_d)
+
     def test_connection_lost_cleanly(self):
         d = self.client.get_client()
 
@@ -115,6 +125,50 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.assertFired(d)
 
-        self.connection_lost(Failure(_TestConnectionLost()))
+        reason = Failure(_TestConnectionLost())
+        self.connection_lost(reason)
 
-        self.flushLoggedErrors(_TestConnectionLost)
+        self.assertEqual(
+            self.flushLoggedErrors(),
+            [reason]
+        )
+
+
+class LossNotifyingWrapperProtocolTests(BaseTestCase):
+    def setUp(self):
+        self.wrapped = mock.Mock(Protocol)
+
+        self.connection_lost = mock.Mock()
+
+        self.wrapper = _LossNotifyingWrapperProtocol(
+            self.wrapped,
+            self.connection_lost
+        )
+
+    def test_makeConnection(self):
+        transport = mock.Mock()
+        self.wrapper.makeConnection(transport)
+        self.wrapped.makeConnection.assert_called_once_with(transport)
+
+    def test_dataReceived(self):
+        self.wrapper.dataReceived('foo')
+        self.wrapped.dataReceived.assert_called_once_with('foo')
+
+    def test_connectionLost(self):
+        reason = Failure(_TestConnectionDone())
+        self.wrapper.connectionLost(reason)
+        self.wrapped.connectionLost.assert_called_once_with(reason)
+
+
+class ThriftClientFactoryTests(BaseTestCase):
+    def setUp(self):
+        self.client_class = mock.Mock()
+        self.connection_lost = mock.Mock()
+        self.factory = _ThriftClientFactory(self.client_class, self.connection_lost)
+
+    def test_buildProtocol(self):
+        protocol = self.factory.buildProtocol(mock.Mock())
+
+        self.assertIsInstance(protocol, _LossNotifyingWrapperProtocol)
+
+
