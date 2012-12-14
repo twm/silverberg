@@ -8,10 +8,14 @@ class BaseTestCase(TestCase):
 
         return results[0]
 
-    def assertFailed(self, d):
+    def assertFailed(self, d, *errorTypes):
         results = []
         d.addErrback(lambda r: results.append(r))
         self.assertEqual(len(results), 1)
 
+        if errorTypes:
+            self.assertNotEqual(results[0].check(*errorTypes), None)
+
         return results[0]
+
 

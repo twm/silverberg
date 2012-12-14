@@ -93,24 +93,6 @@ class MockClientTests(BaseTestCase):
 
         self.endpoint.connect.side_effect = _connect
 
-    def assertFired(self, d):
-        results = []
-        def throw_error(e):
-            e.raiseException()
-        d.addCallback(lambda r: results.append(r))
-        d.addErrback(throw_error)
-        self.assertEqual(len(results), 1)
-
-        return results[0]
-
-    def assertFailed(self, d, errorTypes):
-        results = []
-        d.addErrback(lambda r: results.append(r))
-        self.assertEqual(len(results), 1)
-        self.assertNotEqual(results[0].check(errorTypes), None)
-
-        return results[0]
-
     def test_login(self):
         client = CassandraClient(self.endpoint,'blah','groucho','swordfish')
 

@@ -62,8 +62,8 @@ class CassandraClient(object):
         d.addCallback(lambda _: client)
         return d
 
-    def _get_client(self):
-        d = self._client.get_client()
+    def _connection(self):
+        d = self._client.connection()
         if self._user and self._password:
             d.addCallback(self._login)
 
@@ -75,7 +75,7 @@ class CassandraClient(object):
         def _vers(client):
             return client.describe_version()
 
-        d = self._get_client()
+        d = self._connection()
         d.addCallback(_vers)
         return d
 
@@ -136,7 +136,7 @@ class CassandraClient(object):
             else:
                 return None
 
-        d = self._get_client()
+        d = self._connection()
         d.addCallback(_execute)
         d.addCallback(_proc_results)
         return d

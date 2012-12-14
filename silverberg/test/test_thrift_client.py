@@ -20,10 +20,10 @@ from twisted.internet.error import ConnectError, ConnectionLost, ConnectionDone
 
 from twisted.python.failure import Failure
 
-from thrift.transport import TTwisted
-
 from silverberg.thrift_client import (
     OnDemandThriftClient,
+    ClientDisconnecting,
+    ClientConnecting,
     _LossNotifyingWrapperProtocol,
     _ThriftClientFactory
 )
@@ -70,27 +70,27 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.client = OnDemandThriftClient(self.endpoint, mock.Mock())
 
     def test_initial_connect(self):
-        d = self.client.get_client()
+        d = self.client.connection()
 
         self.connect_d.callback(None)
 
         self.assertEqual(self.assertFired(d), self.client_proto)
 
     def test_connected(self):
-        d1 = self.client.get_client()
+        d1 = self.client.connection()
 
         self.connect_d.callback(None)
 
-        d2 = self.client.get_client()
+        d2 = self.client.connection()
 
         self.assertNotIdentical(d1, d2)
 
         self.assertEqual(self.assertFired(d2), self.client_proto)
 
     def test_connect_while_connecting(self):
-        d1 = self.client.get_client()
+        d1 = self.client.connection()
 
-        d2 = self.client.get_client()
+        d2 = self.client.connection()
 
         self.assertNotIdentical(d1, d2)
 
@@ -100,18 +100,14 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.assertEqual(self.assertFired(d2), self.client_proto)
 
     def test_connect_failed(self):
-        d = self.client.get_client()
+        d = self.client.connection()
 
         self.connect_d.errback(_TestConnectError())
 
-        f = self.assertFailed(d)
-
-        self.assertTrue(f.check(_TestConnectError))
-
-        self.assertFailed(self.connect_d)
+        f = self.assertFailed(d, _TestConnectError)
 
     def test_connection_lost_cleanly(self):
-        d = self.client.get_client()
+        d = self.client.connection()
 
         self.connect_d.callback(None)
         self.assertFired(d)
@@ -119,7 +115,7 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.connection_lost(Failure(_TestConnectionDone()))
 
     def test_connection_lost_uncleanly(self):
-        d = self.client.get_client()
+        d = self.client.connection()
 
         self.connect_d.callback(None)
 
@@ -132,6 +128,48 @@ class OnDemandThriftClientTests(BaseTestCase):
             self.flushLoggedErrors(),
             [reason]
         )
+
+    def test_disconnect(self):
+        d1 = self.client.connection()
+
+        self.connect_d.callback(None)
+
+        self.assertFired(d1)
+
+        d2 = self.client.disconnect()
+
+        self.client_proto.transport.loseConnection.assert_called_once()
+
+        self.connection_lost(Failure(_TestConnectionDone()))
+
+        self.assertFired(d2)
+
+    def test_connect_while_disconnecting(self):
+        d1 = self.client.connection()
+
+        self.connect_d.callback(None)
+
+        self.assertFired(d1)
+
+        d2 = self.client.disconnect()
+
+        d3 = self.client.connection()
+
+        self.connection_lost(Failure(_TestConnectionDone()))
+
+        self.assertFired(d2)
+
+        self.assertFailed(d3, ClientDisconnecting)
+
+    def test_disconnect_while_connecting(self):
+        d1 = self.client.connection()
+        d2 = self.client.disconnect()
+
+        self.assertFailed(d2, ClientConnecting)
+
+        self.connect_d.callback(None)
+
+        self.assertFired(d1)
 
 
 class LossNotifyingWrapperProtocolTests(BaseTestCase):
