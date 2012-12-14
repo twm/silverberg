@@ -8,17 +8,17 @@ DOCDIR=doc
 test:   unit
 
 lint:
-    
+
 	${PYTHONLINT} ${PYDIRS}
 
 unit:
 	PYTHONPATH=".:${PYTHONPATH}" trial --random 0 ${UNITTESTS}
 
 coverage:
-	PYTHONPATH=".:${PYTHONPATH}" coverage run --source=${CODEDIR} --branch `which trial` ${CODEDIR}/test && coverage html -d _trial_coverage --omit="${CODEDIR}/test/*"
+	PYTHONPATH=".:${PYTHONPATH}" coverage run --source=${CODEDIR} --branch `which trial` ${CODEDIR}/test; coverage html -d _trial_coverage --omit="${CODEDIR}/test/*"
 
 thrift:
-	${THRIFT_COMPILER} -out silverberg/ --gen py:twisted interface/cassandra.thrift	
+	${THRIFT_COMPILER} -out silverberg/ --gen py:twisted interface/cassandra.thrift
 
 docs: cleandocs
 	cp -r ${DOCDIR} _builddoc
