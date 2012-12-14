@@ -221,23 +221,20 @@ class MockClientTests(BaseTestCase):
         self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
 
-class FaultTestCase(BaseTestCase):
-    def setUp(self):
-        self.client = CassandraClient(TCP4ClientEndpoint(reactor, '127.0.0.1', 9160),'blah')
+# class FaultTestCase(BaseTestCase):
+#     def setUp(self):
+#         self.client = CassandraClient(TCP4ClientEndpoint(reactor, '127.0.0.1', 9160),'blah')
 
-    """
-    def test_vers(self):
-        d = self.client.describe_version()
-        def printR(r):
-            print r
-        d.addCallback(printR)
-        return d
-       """
-    def test_cql(self):
-        d = self.client.execute("SELECT * FROM blah;", {})
-        def printQ(r):
-            print r
-        d.addCallback(printQ)
-        return d
+#     def test_vers(self):
+#         d = self.client.describe_version()
+#         def printR(r):
+#             print r
+#         d.addCallback(printR)
+#         return d
 
-
+#     def test_cql(self):
+#         d = self.client.execute("SELECT * FROM blah;", {})
+#         def printQ(r):
+#             print r
+#         d.addCallback(printQ)
+#         return d
