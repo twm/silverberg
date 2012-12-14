@@ -153,12 +153,16 @@ class OnDemandThriftClient(object):
             return self._notify_on_connect()
 
     def disconnect(self):
+        if self._state == _State.CONNECTED:
+            self._state = _State.DISCONNECTING
+
+            self._current_client.transport.loseConnection()
+
+            return self._notify_on_disconnect()
         if self._state == _State.CONNECTING:
             return fail(ClientConnecting())
-
-        self._state = _State.DISCONNECTING
-
-        self._current_client.transport.loseConnection()
-
-        return self._notify_on_disconnect()
+        elif self._state == _State.NOT_CONNECTED:
+            return succeed(None)
+        elif self._state == _State.DISCONNECTING:
+            return self._notify_on_disconnect()
 

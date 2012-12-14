@@ -104,7 +104,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.connect_d.errback(_TestConnectError())
 
-        f = self.assertFailed(d, _TestConnectError)
+        self.assertFailed(d, _TestConnectError)
 
     def test_connection_lost_cleanly(self):
         d = self.client.connection()
@@ -170,6 +170,23 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.connect_d.callback(None)
 
         self.assertFired(d1)
+
+    def test_disconnect_while_disconnecting(self):
+        self.client.connection()
+        self.connect_d.callback(None)
+
+        d1 = self.client.disconnect()
+        d2 = self.client.disconnect()
+
+        self.connection_lost(Failure(_TestConnectionDone()))
+
+        self.assertFired(d1)
+        self.assertFired(d2)
+
+    def test_disconnect_while_not_connected(self):
+        d1 = self.client.disconnect()
+        self.assertIdentical(self.assertFired(d1), None)
+
 
 
 class LossNotifyingWrapperProtocolTests(BaseTestCase):
