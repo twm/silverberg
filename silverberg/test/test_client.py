@@ -15,8 +15,7 @@ class MockClientTests(TestCase):
     def setUp(self):
         self.endpoint = mock.Mock()
         self.client_proto = mock.Mock()
-
-        ksDef = ttypes.KsDef(name='blah', cf_defs=[ttypes.CfDef(comment='', key_validation_class='org.apache.cassandra.db.marshal.AsciiType', min_compaction_threshold=4, key_cache_save_period_in_seconds=None, gc_grace_seconds=864000, default_validation_class='org.apache.cassandra.db.marshal.UTF8Type', max_compaction_threshold=32, read_repair_chance=0.1, compression_options={'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'}, bloom_filter_fp_chance=None, id=1000, keyspace='blah', key_cache_size=None, replicate_on_write=True, subcomparator_type=None, merge_shards_chance=None, row_cache_provider=None, row_cache_save_period_in_seconds=None, column_type='Standard', memtable_throughput_in_mb=None, memtable_flush_after_mins=None, column_metadata=[], key_alias=None, dclocal_read_repair_chance=0.0, name='blah', compaction_strategy_options={}, row_cache_keys_to_save=None, compaction_strategy='org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', memtable_operations_in_millions=None, caching='KEYS_ONLY', comparator_type='org.apache.cassandra.db.marshal.UTF8Type', row_cache_size=None)], strategy_options={'replication_factor': '1'}, strategy_class='org.apache.cassandra.locator.SimpleStrategy', replication_factor=None, durable_writes=True)
+        ksDef = ttypes.KsDef(name='blah', cf_defs=[ttypes.CfDef(comment='', key_validation_class='org.apache.cassandra.db.marshal.AsciiType', min_compaction_threshold=4, key_cache_save_period_in_seconds=None, gc_grace_seconds=864000, default_validation_class='org.apache.cassandra.db.marshal.UTF8Type', max_compaction_threshold=32, read_repair_chance=0.1, compression_options={'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'}, bloom_filter_fp_chance=None, id=1004, keyspace='blah', key_cache_size=None, replicate_on_write=True, subcomparator_type=None, merge_shards_chance=None, row_cache_provider=None, row_cache_save_period_in_seconds=None, column_type='Standard', memtable_throughput_in_mb=None, memtable_flush_after_mins=None, column_metadata=[ttypes.ColumnDef(index_type=None, index_name=None, validation_class='org.apache.cassandra.db.marshal.IntegerType', name='fff', index_options=None)], key_alias=None, dclocal_read_repair_chance=0.0, name='blah', compaction_strategy_options={}, row_cache_keys_to_save=None, compaction_strategy='org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', memtable_operations_in_millions=None, caching='KEYS_ONLY', comparator_type='org.apache.cassandra.db.marshal.UTF8Type', row_cache_size=None)], strategy_options={'replication_factor': '1'}, strategy_class='org.apache.cassandra.locator.SimpleStrategy', replication_factor=None, durable_writes=True)
 
         self.mock_results = ttypes.CqlResult(type= ttypes.CqlResultType.INT, num=1)
         self.client_proto.client.set_keyspace.return_value = defer.succeed(None)
@@ -32,7 +31,10 @@ class MockClientTests(TestCase):
 
     def assertFired(self, d):
         results = []
+        def print_error(e):
+            print e
         d.addCallback(lambda r: results.append(r))
+        d.addErrback(print_error)
         self.assertEqual(len(results), 1)
 
         return results[0]
@@ -139,6 +141,21 @@ class MockClientTests(TestCase):
         self.client_proto.client.set_keyspace.assert_called_once_with('blah')
         self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
+    def test_cql_array(self):
+        expected=[
+                 {"cols": 
+                          [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}], 
+                  "key": "blah"}]
+
+        mockrow=[ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows = mockrow)
+        client = CassandraClient(self.endpoint,'blah')
+
+        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
+        self.assertEqual(self.assertFired(d), expected)
+        self.client_proto.client.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
 
 
 class FaultTestCase(TestCase):

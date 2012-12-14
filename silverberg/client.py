@@ -23,10 +23,12 @@ from twisted.internet.defer import Deferred, succeed
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
-from silverberg.marshal import prepare
+from silverberg.marshal import prepare, unmarshallers
+
+import re
 
 # used to parse the CF name out of a select statement.
-selectRe = r"/\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)/im;"
+selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)",re.I | re.M)
 
 class _LossNotifyingWrapperProtocol(Protocol):
     def __init__(self, wrapped, on_connectionLost):
@@ -157,17 +159,58 @@ class CassandraClient(object):
         d.addCallback(_vers)
         return d
         
+    def _unmarshal_result(self, cfname, raw_rows):
+        rows = []
+        if cfname not in self._validators:
+            validator = None;
+        else:
+            validator = self._validators[cfname]
+
+        def _unmarshal_val(type, val):
+            if type == None:
+                return val
+            elif type in unmarshallers:
+                return unmarshallers[type](val)
+            else:
+                return val
+                
+        def _find_specific(col):
+            if validator == None:
+                return None
+            elif col in validator['specific_validators']:
+                return validator['specific_validators'][col]
+            else:
+                return validator['defaultValidator']
+                
+        for raw_row in raw_rows:
+            cols = []
+            #as it turns out, you can have multiple cols with the same
+            #name.
+            key = raw_row.key
+            if validator is not None:
+                key = _unmarshal_val(validator['key'],raw_row.key)
+            for raw_col in raw_row.columns:
+                specific = _find_specific(raw_col.name)
+                temp_col = {"timestamp" : raw_col.timestamp, 
+                            "name": raw_col.name,
+                            "ttl": raw_col.ttl,
+                            "value": _unmarshal_val(specific, raw_col.value)}
+                cols.append(temp_col)
+            rows.append(
+                {"key": key, "cols": cols}
+            )
+        return rows
+        
     def execute(self, query, args):
         def _execute(client):
             return client.client.execute_cql_query(prepare(
                 query, args), ttypes.Compression.NONE)
 
         def _proc_results(result):
+            cfname = selectRe.match(query).group(1)
             if result.type == ttypes.CqlResultType.ROWS:
-                # TODO: Take the learned keyspace info 
-                # and use it to proc results
-                return result.rows
-            elif result.type is ttypes.CqlResultType.INT:
+                return self._unmarshal_result(cfname, result.rows)
+            elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:
                 return None
