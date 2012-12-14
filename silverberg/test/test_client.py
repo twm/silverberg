@@ -134,19 +134,6 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array(self):
-        mockrow=[ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
-
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
-        client = CassandraClient(self.endpoint, 'blah')
-
-        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
-
-        self.assertEqual(self.assertFired(d), mockrow)
-        self.client_proto.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
-        self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
-
-    def test_cql_array(self):
         expected=[
                  {"cols":
                           [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
@@ -158,9 +145,9 @@ class MockClientTests(BaseTestCase):
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.client.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
-        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        self.client_proto.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array_deserial(self):
         expected=[
@@ -174,9 +161,9 @@ class MockClientTests(BaseTestCase):
 
         d = client.execute("SELECT * FROM blah;", {})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.client.execute_cql_query.assert_called_once_with("SELECT * FROM blah;", 2)
-        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        self.client_proto.execute_cql_query.assert_called_once_with("SELECT * FROM blah;", 2)
+        self.client_proto.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert(self):
         expected=None
@@ -186,9 +173,9 @@ class MockClientTests(BaseTestCase):
 
         d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'",{})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.client.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'", 2)
-        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        self.client_proto.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'", 2)
+        self.client_proto.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert_vars(self):
         expected=None
@@ -198,9 +185,9 @@ class MockClientTests(BaseTestCase):
 
         d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = :val WHERE KEY='frr'",{"val":1234})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.client.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1234 WHERE KEY='frr'", 2)
-        self.client_proto.client.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.client.describe_keyspace.assert_called_once_with('blah')
+        self.client_proto.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1234 WHERE KEY='frr'", 2)
+        self.client_proto.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
 
 # class FaultTestCase(BaseTestCase):
