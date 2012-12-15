@@ -207,13 +207,14 @@ class CassandraClient(object):
             ]
 
         """
+        prep_query = prepare(query, args)
         def _execute(client):
-            return client.execute_cql_query(prepare(
-                query, args), ttypes.Compression.NONE)
+            return client.execute_cql_query(prep_query, 
+                                            ttypes.Compression.NONE)
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
-                cfname = selectRe.match(query).group(1)
+                cfname = selectRe.match(prep_query).group(1)
                 return self._unmarshal_result(cfname, result.rows)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num

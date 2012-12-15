@@ -159,9 +159,9 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows = mockrow)
         client = CassandraClient(self.endpoint,'blah')
 
-        d = client.execute("SELECT * FROM blah;", {})
+        d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with("SELECT * FROM blah;", 2)
+        self.client_proto.execute_cql_query.assert_called_once_with("SELECT * FROM 'blah';", 2)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
