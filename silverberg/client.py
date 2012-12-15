@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+
+Client API library for the Silverberg Twisted Cassandra CQL interface.
+
+"""
+
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
@@ -26,7 +32,43 @@ selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
 
 
 class CassandraClient(object):
+
+    """Cassandra Client object.
+
+    Instantiate it and it will on-demand create a connection to the Cassandra
+    cluster
+
+    :param cass_endpoint: A twisted Endpoint
+    :type cass_endpoint: twisted.internet.interfaces.IStreamClientEndpoint
+
+    :param keyspace: A keyspace to connect to
+    :type keyspace: str.
+
+    :param user: Username to connect with.
+    :type user: str.
+
+    :param password: Username to connect with.
+    :type password: str.
+
+    """
+
     def __init__(self, cass_endpoint, keyspace, user=None, password=None):
+        """Connect to a Cassandra server.
+
+        :param cass_endpoint: A twisted Endpoint
+        :type cass_endpoint: twisted.internet.interfaces.IStreamClientEndpoint
+
+        :param keyspace: A keyspace to connect to
+        :type keyspace: str.
+
+        :param user: Username to connect with.
+        :type user: str.
+
+        :param password: Username to connect with.
+        :type password: str.
+
+        """
+
         self._client = OnDemandThriftClient(cass_endpoint, Cassandra.Client)
 
         self._keyspace = keyspace
@@ -71,6 +113,11 @@ class CassandraClient(object):
         return d
 
     def describe_version(self):
+        """Query the Cassandra server for the version.
+
+        :returns: string -- the version tag
+
+        """
         def _vers(client):
             return client.describe_version()
 
@@ -122,6 +169,44 @@ class CassandraClient(object):
         return rows
 
     def execute(self, query, args):
+        """Execute a CQL query against the server.
+
+        :param query: The CQL query to execute
+        :type query: str.
+
+        :param args: The arguments to substitute
+        :type args: dict.
+
+        In order to avoid unpleasant issues of CQL injection
+        (Hey, just because there's no SQL doesn't mean that Little
+        Bobby Tables won't mess things up for you like in XKCD #327)
+        you probably want to use argument substitution instead of
+        concatting strings together to build a query.
+
+        Thus, like the official CQL driver for non-Twisted python
+        that comes with the Cassandra distro, we do variable substitution.
+
+        Example::
+
+            d = client.execute("UPDATE :table SET 'fff' = :val WHERE "
+            "KEY = :key",{"val":1234, "key": "fff", "table": "blah"})
+
+        :returns: either None, an int, or a sequence of rows, depending
+                  on the CQL query.  e.g. a UPDATE would return None,
+                  whereas a SELECT would return an int or some rows
+
+        Example output::
+
+            [
+             {"cols":
+              [
+                {"name": "fff", "timestamp": None, 'ttl': None,
+                 "value": 1222}],
+              "key": "blah"
+             }
+            ]
+
+        """
         def _execute(client):
             return client.execute_cql_query(prepare(
                 query, args), ttypes.Compression.NONE)
