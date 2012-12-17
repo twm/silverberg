@@ -16,32 +16,18 @@ from silverberg.client import CassandraClient
 
 
 class RoundRobinCassandraCluster(object):
-    def __init__(self, seed_endpoints, keyspace, user=None, password=None,
-                 _client_class=CassandraClient):
-
+    def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
-            _client_class(endpoint, keyspace, user, password)
+            CassandraClient(endpoint, keyspace, user, password)
             for endpoint in seed_endpoints
         ]
-
-        self._client_class = _client_class
-
         self._client_idx = 0
 
     def _client(self):
         n = self._client_idx % len(self._seed_clients)
-
         client = self._seed_clients[n]
-
         self._client_idx += 1
-
         return client
 
-    def __getattr__(self, method):
-        if hasattr(self._client_class, method):
-            def _client_method(*args, **kwargs):
-                return getattr(self._client(), method)(*args, **kwargs)
-
-            return _client_method
-
-        raise AttributeError()
+    def execute(self, *args, **kwargs):
+        return self._client().execute(*args, **kwargs)

@@ -23,7 +23,9 @@ from silverberg.cluster import RoundRobinCassandraCluster
 
 class RoundRobinCassandraClusterTests(BaseTestCase):
     def setUp(self):
-        self.CassandraClient = mock.Mock(CassandraClient)
+        self.cass_client_patcher = mock.patch("silverberg.cluster.CassandraClient")
+        self.CassandraClient = self.cass_client_patcher.start()
+        self.addCleanup(self.cass_client_patcher.stop)
 
         self.clients = []
 
@@ -34,32 +36,8 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
 
         self.CassandraClient.side_effect = _CassandraClient
 
-    def test_getattr(self):
-        cluster = RoundRobinCassandraCluster(
-            ['one'], 'keyspace',
-            _client_class=self.CassandraClient)
-
-        self.CassandraClient.assert_called_once_with('one', 'keyspace', None, None)
-
-        result = cluster.execute('foo', 'bar')
-
-        self.clients[0].execute.assert_called_once_with('foo', 'bar')
-        self.assertEqual(self.clients[0].execute.return_value, result)
-
-    def test_getattr_fails(self):
-        cluster = RoundRobinCassandraCluster(
-            ['one'], 'keyspace',
-            _client_class=self.CassandraClient)
-
-        def _try_access_unknown():
-            cluster.unknown_method()
-
-        self.assertRaises(AttributeError, _try_access_unknown)
-
-    def test_round_robin(self):
-        cluster = RoundRobinCassandraCluster(
-            ['one', 'two', 'three'], 'keyspace',
-            _client_class=self.CassandraClient)
+    def test_round_robin_execute(self):
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
 
         for client, arg in [(0, 'foo'), (1, 'bar'), (2, 'baz'), (0, 'bax')]:
             result = cluster.execute(arg)
