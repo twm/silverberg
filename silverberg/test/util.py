@@ -1,5 +1,6 @@
 from twisted.trial.unittest import TestCase
 
+
 class BaseTestCase(TestCase):
     def assertFired(self, d):
         results = []
@@ -17,5 +18,3 @@ class BaseTestCase(TestCase):
             self.assertNotEqual(results[0].check(*errorTypes), None)
 
         return results[0]
-
-

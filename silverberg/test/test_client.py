@@ -13,8 +13,7 @@
 # limitations under the License.
 import mock
 
-from twisted.internet import defer, reactor
-from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.internet import defer
 
 from silverberg.client import CassandraClient
 
@@ -39,7 +38,8 @@ class MockClientTests(BaseTestCase):
                 default_validation_class='org.apache.cassandra.db.marshal.UTF8Type',
                 max_compaction_threshold=32,
                 read_repair_chance=0.1,
-                compression_options={'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'},
+                compression_options={
+                    'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'},
                 bloom_filter_fp_chance=None,
                 id=1004,
                 keyspace='blah',
@@ -94,7 +94,7 @@ class MockClientTests(BaseTestCase):
         self.endpoint.connect.side_effect = _connect
 
     def test_login(self):
-        client = CassandraClient(self.endpoint,'blah','groucho','swordfish')
+        client = CassandraClient(self.endpoint, 'blah', 'groucho', 'swordfish')
 
         d = client.describe_version()
         self.assertEqual(self.assertFired(d), '1.2.3')
@@ -108,14 +108,14 @@ class MockClientTests(BaseTestCase):
 
     def test_bad_keyspace(self):
         self.client_proto.set_keyspace.return_value = defer.fail(ttypes.NotFoundException())
-        client = CassandraClient(self.endpoint,'blah')
+        client = CassandraClient(self.endpoint, 'blah')
 
         d = client.describe_version()
         self.assertFailed(d, ttypes.NotFoundException)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
     def test_describe_version(self):
-        client = CassandraClient(self.endpoint,'blah')
+        client = CassandraClient(self.endpoint, 'blah')
 
         d = client.describe_version()
         self.assertEqual(self.assertFired(d), '1.2.3')
@@ -125,7 +125,7 @@ class MockClientTests(BaseTestCase):
 
     def test_cql_value(self):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.INT, num=1)
-        client = CassandraClient(self.endpoint,'blah')
+        client = CassandraClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), 1)
@@ -134,14 +134,13 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array(self):
-        expected=[
-                 {"cols":
-                          [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
-                  "key": "blah"}]
+        expected = [
+            {"cols": [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
+             "key": "blah"}]
 
-        mockrow=[ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows = mockrow)
-        client = CassandraClient(self.endpoint,'blah')
+        mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        client = CassandraClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), expected)
@@ -150,14 +149,13 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array_deserial(self):
-        expected=[
-                 {"cols":
-                          [{"name": "fff", "timestamp": None, 'ttl': None, "value": 1222}],
-                  "key": "blah"}]
+        expected = [
+            {"cols": [{"name": "fff", "timestamp": None, 'ttl': None, "value": 1222}],
+             "key": "blah"}]
 
-        mockrow=[ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows = mockrow)
-        client = CassandraClient(self.endpoint,'blah')
+        mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        client = CassandraClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"})
         self.assertEqual(self.assertFired(d), expected)
@@ -166,33 +164,37 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert(self):
-        expected=None
+        expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
-        client = CassandraClient(self.endpoint,'blah')
+        client = CassandraClient(self.endpoint, 'blah')
 
-        d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'",{})
+        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'", {})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1222 WHERE KEY='frr'", 2)
+        self.client_proto.execute_cql_query.assert_called_once_with(
+            "UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'",
+            2)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert_vars(self):
-        expected=None
+        expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
-        client = CassandraClient(self.endpoint,'blah')
+        client = CassandraClient(self.endpoint, 'blah')
 
-        d = client.execute("UPDATE blah SET 'key' = 'frr', 'fff' = :val WHERE KEY='frr'",{"val":1234})
+        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=:val WHERE KEY='frr'", {"val": 1234})
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with("UPDATE blah SET 'key' = 'frr', 'fff' = 1234 WHERE KEY='frr'", 2)
+        self.client_proto.execute_cql_query.assert_called_once_with(
+            "UPDATE blah SET 'key'='frr', 'fff'=1234 WHERE KEY='frr'",
+            2)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
 
 # class FaultTestCase(BaseTestCase):
 #     def setUp(self):
-#         self.client = CassandraClient(TCP4ClientEndpoint(reactor, '127.0.0.1', 9160),'blah')
+#         self.client = CassandraClient(TCP4ClientEndpoint(reactor, '127.0.0.1', 9160), 'blah')
 
 #     def test_vers(self):
 #         d = self.client.describe_version()
