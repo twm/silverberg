@@ -50,6 +50,11 @@ class CassandraClient(object):
     :param password: Username to connect with.
     :type password: str.
 
+    n.b. Cassandra presently doesn't have any real support for password
+    authentication in the mainline as the simple access control options
+    are disabled; you probably need to secure your Cassandra server using 
+    different methods and the password code isn't heavily tested.
+
     """
 
     def __init__(self, cass_endpoint, keyspace, user=None, password=None):
