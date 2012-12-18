@@ -29,5 +29,10 @@ setup(
     url='https://github.com/racker/silverberg/',
     long_description=open('README.md').read(),
     packages=getPackages('silverberg'),
-    install_requires=['Twisted >= 12.0.0', 'thrift == 0.8.0', 'mock'],
+    install_requires=[
+        'Twisted >= 12.0.0',
+        'thrift == 0.9.0',
+        'mock >= 0.9',
+        'cql >= 1.4.0'
+    ],
 )
