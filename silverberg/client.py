@@ -31,9 +31,9 @@ from silverberg.thrift_client import OnDemandThriftClient
 selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
 
 
-class CassandraClient(object):
+class CqlClient(object):
 
-    """Cassandra Client object.
+    """Cassandra CQL Client object.
 
     Instantiate it and it will on-demand create a connection to the Cassandra
     cluster
