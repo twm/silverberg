@@ -5,3 +5,4 @@ _trial_coverage
 *.egg-info
 build
 dist
+htmldoc
