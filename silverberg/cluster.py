@@ -16,6 +16,18 @@ from silverberg.client import CassandraClient
 
 
 class RoundRobinCassandraCluster(object):
+    """
+    Maintain several :py:class:`silverberg.client.CassandraClient` instances
+    connected `seed_endpoints` using `keyspace`.  Each time :py:func:`execute`
+    is called a client will be selected in a round-robin fashion.
+
+    :param seed_endpoints: A list of `IStreamClientEndpoint` providers to maintain
+        client connections to.
+    :param str keyspace: The cassandra keyspace to use.
+
+    :param str user: Optional username.
+    :param str password: Optional password.
+    """
     def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
             CassandraClient(endpoint, keyspace, user, password)
@@ -30,4 +42,7 @@ class RoundRobinCassandraCluster(object):
         return client
 
     def execute(self, *args, **kwargs):
+        """
+        See :py:func:`silverberg.client.CassandraClient.execute`
+        """
         return self._client().execute(*args, **kwargs)
