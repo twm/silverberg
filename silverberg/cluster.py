@@ -14,6 +14,7 @@
 
 from silverberg.client import CQLClient
 
+
 class RoundRobinCassandraCluster(object):
     """
     Maintain several :py:class:`silverberg.client.CQLClient` instances
