@@ -52,9 +52,8 @@ class CqlClient(object):
 
     n.b. Cassandra presently doesn't have any real support for password
     authentication in the mainline as the simple access control options
-    are disabled; you probably need to secure your Cassandra server using 
+    are disabled; you probably need to secure your Cassandra server using
     different methods and the password code isn't heavily tested.
-
     """
 
     def __init__(self, cass_endpoint, keyspace, user=None, password=None):
@@ -118,10 +117,10 @@ class CqlClient(object):
         return d
 
     def describe_version(self):
-        """Query the Cassandra server for the version.
+        """
+        Query the Cassandra server for the version.
 
         :returns: string -- the version tag
-
         """
         def _vers(client):
             return client.describe_version()
@@ -174,7 +173,8 @@ class CqlClient(object):
         return rows
 
     def execute(self, query, args):
-        """Execute a CQL query against the server.
+        """
+        Execute a CQL query against the server.
 
         :param query: The CQL query to execute
         :type query: str.
@@ -210,7 +210,6 @@ class CqlClient(object):
               "key": "blah"
              }
             ]
-
         """
         prep_query = prepare(query, args)
 
