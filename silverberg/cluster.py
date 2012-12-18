@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from silverberg.client import CassandraClient
+from silverberg.client import CqlClient
 
 
 class RoundRobinCassandraCluster(object):
@@ -30,7 +30,7 @@ class RoundRobinCassandraCluster(object):
     """
     def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
-            CassandraClient(endpoint, keyspace, user, password)
+            CqlClient(endpoint, keyspace, user, password)
             for endpoint in seed_endpoints
         ]
         self._client_idx = 0
