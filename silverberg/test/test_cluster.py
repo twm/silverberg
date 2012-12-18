@@ -43,4 +43,3 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
             result = cluster.execute(arg)
             self.clients[client].execute.assert_called_with(arg)
             self.assertEqual(self.clients[client].execute.return_value, result)
-
