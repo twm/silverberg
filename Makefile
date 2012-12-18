@@ -1,3 +1,4 @@
+PWD = $(shell pwd)
 CODEDIR=silverberg
 SCRIPTSDIR=scripts
 PYDIRS=${CODEDIR} ${SCRIPTSDIR}
@@ -22,7 +23,7 @@ thrift:
 
 docs: cleandocs
 	cp -r ${DOCDIR} _builddoc
-	sphinx-apidoc -F -T -o _builddoc ${CODEDIR}
+	sphinx-apidoc -F -T -o _builddoc ${CODEDIR} ${PWD}/${CODEDIR}/cassandra ${PWD}/${CODEDIR}/test
 	PYTHONPATH=".:${PYTHONPATH}" sphinx-build -b html _builddoc htmldoc
 	rm -rf _builddoc
 

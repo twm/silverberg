@@ -31,9 +31,9 @@ from silverberg.thrift_client import OnDemandThriftClient
 selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
 
 
-class CqlClient(object):
-
-    """Cassandra CQL Client object.
+class CQLClient(object):
+    """
+    Cassandra CQL Client object.
 
     Instantiate it and it will on-demand create a connection to the Cassandra
     cluster
@@ -57,22 +57,6 @@ class CqlClient(object):
     """
 
     def __init__(self, cass_endpoint, keyspace, user=None, password=None):
-        """Connect to a Cassandra server.
-
-        :param cass_endpoint: A twisted Endpoint
-        :type cass_endpoint: twisted.internet.interfaces.IStreamClientEndpoint
-
-        :param keyspace: A keyspace to connect to
-        :type keyspace: str.
-
-        :param user: Username to connect with.
-        :type user: str.
-
-        :param password: Username to connect with.
-        :type password: str.
-
-        """
-
         self._client = OnDemandThriftClient(cass_endpoint, Cassandra.Client)
 
         self._keyspace = keyspace

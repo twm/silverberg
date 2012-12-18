@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from silverberg.client import CqlClient
-
+from silverberg.client import CQLClient
 
 class RoundRobinCassandraCluster(object):
     """
-    Maintain several :py:class:`silverberg.client.CassandraClient` instances
+    Maintain several :py:class:`silverberg.client.CQLClient` instances
     connected `seed_endpoints` using `keyspace`.  Each time :py:func:`execute`
     is called a client will be selected in a round-robin fashion.
 
@@ -30,7 +29,7 @@ class RoundRobinCassandraCluster(object):
     """
     def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
-            CqlClient(endpoint, keyspace, user, password)
+            CQLClient(endpoint, keyspace, user, password)
             for endpoint in seed_endpoints
         ]
         self._client_idx = 0
@@ -43,6 +42,6 @@ class RoundRobinCassandraCluster(object):
 
     def execute(self, *args, **kwargs):
         """
-        See :py:func:`silverberg.client.CassandraClient.execute`
+        See :py:func:`silverberg.client.CQLClient.execute`
         """
         return self._client().execute(*args, **kwargs)

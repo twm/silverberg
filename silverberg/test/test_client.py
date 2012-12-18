@@ -15,7 +15,7 @@ import mock
 
 from twisted.internet import defer
 
-from silverberg.client import CqlClient
+from silverberg.client import CQLClient
 
 from silverberg.cassandra import ttypes
 
@@ -94,7 +94,7 @@ class MockClientTests(BaseTestCase):
         self.endpoint.connect.side_effect = _connect
 
     def test_login(self):
-        client = CqlClient(self.endpoint, 'blah', 'groucho', 'swordfish')
+        client = CQLClient(self.endpoint, 'blah', 'groucho', 'swordfish')
 
         d = client.describe_version()
         self.assertEqual(self.assertFired(d), '1.2.3')
@@ -108,14 +108,14 @@ class MockClientTests(BaseTestCase):
 
     def test_bad_keyspace(self):
         self.client_proto.set_keyspace.return_value = defer.fail(ttypes.NotFoundException())
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.describe_version()
         self.assertFailed(d, ttypes.NotFoundException)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
     def test_describe_version(self):
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.describe_version()
         self.assertEqual(self.assertFired(d), '1.2.3')
@@ -125,7 +125,7 @@ class MockClientTests(BaseTestCase):
 
     def test_cql_value(self):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.INT, num=1)
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), 1)
@@ -140,7 +140,7 @@ class MockClientTests(BaseTestCase):
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
         self.assertEqual(self.assertFired(d), expected)
@@ -155,7 +155,7 @@ class MockClientTests(BaseTestCase):
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"})
         self.assertEqual(self.assertFired(d), expected)
@@ -167,7 +167,7 @@ class MockClientTests(BaseTestCase):
         expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'", {})
         self.assertEqual(self.assertFired(d), expected)
@@ -181,7 +181,7 @@ class MockClientTests(BaseTestCase):
         expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
-        client = CqlClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=:val WHERE KEY='frr'", {"val": 1234})
         self.assertEqual(self.assertFired(d), expected)

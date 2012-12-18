@@ -1,10 +1,10 @@
 
 Welcome to silverberg's documentation!
-=================================
+======================================
 
 
-Code API documentation
-----------------------
+API documentation
+-----------------
 
 .. toctree::
    :maxdepth: 3
