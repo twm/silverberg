@@ -16,25 +16,25 @@ import mock
 
 from silverberg.test.util import BaseTestCase
 
-from silverberg.client import CassandraClient
+from silverberg.client import CQLClient
 
 from silverberg.cluster import RoundRobinCassandraCluster
 
 
 class RoundRobinCassandraClusterTests(BaseTestCase):
     def setUp(self):
-        self.cass_client_patcher = mock.patch("silverberg.cluster.CassandraClient")
-        self.CassandraClient = self.cass_client_patcher.start()
-        self.addCleanup(self.cass_client_patcher.stop)
+        self.cql_client_patcher = mock.patch("silverberg.cluster.CQLClient")
+        self.CQLClient = self.cql_client_patcher.start()
+        self.addCleanup(self.cql_client_patcher.stop)
 
         self.clients = []
 
-        def _CassandraClient(*args, **kwargs):
-            c = mock.Mock(CassandraClient)
+        def _CQLClient(*args, **kwargs):
+            c = mock.Mock(CQLClient)
             self.clients.append(c)
             return c
 
-        self.CassandraClient.side_effect = _CassandraClient
+        self.CQLClient.side_effect = _CQLClient
 
     def test_round_robin_execute(self):
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
