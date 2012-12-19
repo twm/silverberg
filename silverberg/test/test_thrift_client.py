@@ -14,7 +14,7 @@
 
 import mock
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import succeed, Deferred
 from twisted.internet.protocol import Protocol
 from twisted.internet.error import ConnectError, ConnectionLost, ConnectionDone
 
@@ -75,6 +75,31 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.connect_d.callback(None)
 
         self.assertEqual(self.assertFired(d), self.client_proto)
+
+    def test_initial_handshake_non_deferred(self):
+        def _mock_handshake(client):
+            return client
+            
+        m = mock.MagicMock(side_effect=_mock_handshake)
+        
+        d = self.client.connection(m)
+
+        self.connect_d.callback(None)
+
+        self.assertEqual(self.assertFired(d), self.client_proto)
+        m.assert_called_once()
+
+    def test_initial_handshake_deferred(self):
+        def _mock_handshake_d(client):
+            return succeed(client)
+            
+        m = mock.MagicMock(side_effect=_mock_handshake_d)
+        
+        d = self.client.connection(m)
+        self.connect_d.callback(None)
+
+        self.assertEqual(self.assertFired(d), self.client_proto)
+        m.assert_called_once()
 
     def test_connected(self):
         d1 = self.client.connection()

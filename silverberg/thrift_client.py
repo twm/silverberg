@@ -18,7 +18,7 @@ from thrift.transport import TTwisted
 from thrift.protocol import TBinaryProtocol
 
 from twisted.internet.error import ConnectionDone
-from twisted.internet.defer import succeed, fail, Deferred
+from twisted.internet.defer import succeed, fail, Deferred, maybeDeferred
 from twisted.internet.protocol import Protocol, Factory
 
 from twisted.python import log
@@ -140,7 +140,7 @@ class OnDemandThriftClient(object):
             return wrapper.wrapped.client
             
         def _do_handshake(client):
-            hd = handshake(client)
+            hd = maybeDeferred(handshake,client)
             hd.addCallback(lambda _: client)
             return hd
             
