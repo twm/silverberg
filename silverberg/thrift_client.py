@@ -138,20 +138,20 @@ class OnDemandThriftClient(object):
 
         def _unwrap_client(wrapper):
             return wrapper.wrapped.client
-            
+
         def _do_handshake(client):
-            hd = maybeDeferred(handshake,client)
+            hd = maybeDeferred(handshake, client)
             hd.addCallback(lambda _: client)
             return hd
-            
+
         d = self._endpoint.connect(self._factory)
         d.addCallback(_unwrap_client)
         if handshake is not None:
             d.addCallback(_do_handshake)
-            
+
         d.addCallbacks(self._connection_made, self._connection_failed)
-        
-    def connection(self, handshake = None):
+
+    def connection(self, handshake=None):
         if self._state == _State.CONNECTED:
             return succeed(self._current_client)
         elif self._state == _State.DISCONNECTING:

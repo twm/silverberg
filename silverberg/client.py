@@ -21,7 +21,7 @@ Client API library for the Silverberg Twisted Cassandra CQL interface.
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
-from twisted.internet.defer import succeed, fail, Deferred
+from twisted.internet.defer import succeed
 
 from silverberg.marshal import prepare, unmarshallers
 
