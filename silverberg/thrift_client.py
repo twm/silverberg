@@ -113,17 +113,15 @@ class OnDemandThriftClient(object):
                     "Lost current connection, reconnecting on demand.",
                     system=self.__class__.__name__)
 
-    def _connection_made(self, wrapper):
+    def _connection_made(self, client):
         self._state = _State.CONNECTED
-        self._current_client = wrapper.wrapped.client
+        self._current_client = client
 
         # XXX: Is the above state change sufficient to deal with re-entrancy?
 
         while self._waiting_on_connect:
             d = self._waiting_on_connect.popleft()
             d.callback(self._current_client)
-
-        return self._current_client
 
     def _connection_failed(self, reason):
         self._state = _State.NOT_CONNECTED
@@ -135,20 +133,32 @@ class OnDemandThriftClient(object):
             d = self._waiting_on_connect.popleft()
             d.errback(reason)
 
-    def _connect(self):
+    def _connect(self, handshake):
         self._state = _State.CONNECTING
 
+        def _unwrap_client(wrapper):
+            return wrapper.wrapped.client
+            
+        def _do_handshake(client):
+            hd = handshake(client)
+            hd.addCallback(lambda _: client)
+            return hd
+            
         d = self._endpoint.connect(self._factory)
+        d.addCallback(_unwrap_client)
+        if handshake is not None:
+            d.addCallback(_do_handshake)
+            
         d.addCallbacks(self._connection_made, self._connection_failed)
-
-    def connection(self):
+        
+    def connection(self, handshake = None):
         if self._state == _State.CONNECTED:
             return succeed(self._current_client)
         elif self._state == _State.DISCONNECTING:
             return fail(ClientDisconnecting())
         elif self._state == _State.NOT_CONNECTED:
             d = self._notify_on_connect()
-            self._connect()
+            self._connect(handshake)
             return d
         else:
             assert self._state == _State.CONNECTING

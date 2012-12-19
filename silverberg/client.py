@@ -21,6 +21,8 @@ Client API library for the Silverberg Twisted Cassandra CQL interface.
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
+from twisted.internet.defer import succeed, fail, Deferred
+
 from silverberg.marshal import prepare, unmarshallers
 
 import re
@@ -92,13 +94,16 @@ class CQLClient(object):
         return d
 
     def _connection(self):
-        d = self._client.connection()
-        if self._user and self._password:
-            d.addCallback(self._login)
+        def _handshake(client):
+            d = succeed(client)
+            if self._user and self._password:
+                d.addCallback(self._login)
+            d.addCallback(self._set_keyspace)
+            d.addCallback(self._learn)
+            return d
 
-        d.addCallback(self._set_keyspace)
-        d.addCallback(self._learn)
-        return d
+        ds = self._client.connection(_handshake)
+        return ds
 
     def describe_version(self):
         """
