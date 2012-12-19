@@ -78,7 +78,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
     def test_initial_handshake_non_deferred(self):
         def _mock_handshake(client):
-            return client
+            return None
 
         m = mock.MagicMock(side_effect=_mock_handshake)
 
@@ -91,7 +91,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
     def test_initial_handshake_deferred(self):
         def _mock_handshake_d(client):
-            return succeed(client)
+            return succeed(None)
 
         m = mock.MagicMock(side_effect=_mock_handshake_d)
 
