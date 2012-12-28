@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""On demand Thrift client."""
+
 from collections import deque
 
 from thrift.transport import TTwisted
@@ -29,6 +31,7 @@ class ClientDisconnecting(Exception):
     """
     An error that occurs when OnDemandThriftClient.connection() is called
     while the client is in a DISCONNECTING state.
+
     """
 
 
@@ -36,6 +39,7 @@ class ClientConnecting(Exception):
     """
     An error that occurs when OnDemandThriftClient.disconnect is called
     while the client is in a CONNECTING state.
+
     """
 
 
@@ -78,6 +82,16 @@ class _State(Names):
 
 
 class OnDemandThriftClient(object):
+    """
+    Creates a thrift client on-demand.
+
+    When you init the object, it won't actually connect until
+    you need it to.
+
+    If the connection is dropped for one reason or another on
+    the interim, it'll reconnect when you need it to.
+
+    """
     def __init__(self, endpoint, client_class):
         self._endpoint = endpoint
         self._factory = _ThriftClientFactory(client_class,
@@ -152,6 +166,15 @@ class OnDemandThriftClient(object):
         d.addCallbacks(self._connection_made, self._connection_failed)
 
     def connection(self, handshake=None):
+        """
+        Connects if necessary, returns existing one if it can.
+
+        :param handshake: A function to be called with the client
+                          to complete the handshake.
+
+        :returns: thrift connection, deferred if necessary
+
+        """
         if self._state == _State.CONNECTED:
             return succeed(self._current_client)
         elif self._state == _State.DISCONNECTING:
@@ -165,6 +188,12 @@ class OnDemandThriftClient(object):
             return self._notify_on_connect()
 
     def disconnect(self):
+        """
+        Disconnects.
+
+        You probably don't need to use this unless you are writing
+        unit tests.
+        """
         if self._state == _State.CONNECTED:
             self._state = _State.DISCONNECTING
 

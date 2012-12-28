@@ -38,7 +38,7 @@ class CQLClient(object):
     Cassandra CQL Client object.
 
     Instantiate it and it will on-demand create a connection to the Cassandra
-    cluster
+    cluster.
 
     :param cass_endpoint: A twisted Endpoint
     :type cass_endpoint: twisted.internet.interfaces.IStreamClientEndpoint
@@ -51,6 +51,9 @@ class CQLClient(object):
 
     :param password: Username to connect with.
     :type password: str.
+
+    Upon connecting, the client will authenticate (if paramaters are provided)
+    and obtain the keyspace definition so that it can de-serialize properly.
 
     n.b. Cassandra presently doesn't have any real support for password
     authentication in the mainline as the simple access control options
