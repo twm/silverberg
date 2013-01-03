@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""On demand Thrift client."""
+
 from collections import deque
 
 from thrift.transport import TTwisted
 from thrift.protocol import TBinaryProtocol
 
 from twisted.internet.error import ConnectionDone
-from twisted.internet.defer import succeed, fail, Deferred
+from twisted.internet.defer import succeed, fail, Deferred, maybeDeferred
 from twisted.internet.protocol import Protocol, Factory
 
 from twisted.python import log
@@ -29,6 +31,7 @@ class ClientDisconnecting(Exception):
     """
     An error that occurs when OnDemandThriftClient.connection() is called
     while the client is in a DISCONNECTING state.
+
     """
 
 
@@ -36,6 +39,7 @@ class ClientConnecting(Exception):
     """
     An error that occurs when OnDemandThriftClient.disconnect is called
     while the client is in a CONNECTING state.
+
     """
 
 
@@ -78,6 +82,16 @@ class _State(Names):
 
 
 class OnDemandThriftClient(object):
+    """
+    Creates a thrift client on-demand.
+
+    When you init the object, it won't actually connect until
+    you need it to.
+
+    If the connection is dropped for one reason or another on
+    the interim, it'll reconnect when you need it to.
+
+    """
     def __init__(self, endpoint, client_class):
         self._endpoint = endpoint
         self._factory = _ThriftClientFactory(client_class,
@@ -113,17 +127,15 @@ class OnDemandThriftClient(object):
                     "Lost current connection, reconnecting on demand.",
                     system=self.__class__.__name__)
 
-    def _connection_made(self, wrapper):
+    def _connection_made(self, client):
         self._state = _State.CONNECTED
-        self._current_client = wrapper.wrapped.client
+        self._current_client = client
 
         # XXX: Is the above state change sufficient to deal with re-entrancy?
 
         while self._waiting_on_connect:
             d = self._waiting_on_connect.popleft()
             d.callback(self._current_client)
-
-        return self._current_client
 
     def _connection_failed(self, reason):
         self._state = _State.NOT_CONNECTED
@@ -135,26 +147,53 @@ class OnDemandThriftClient(object):
             d = self._waiting_on_connect.popleft()
             d.errback(reason)
 
-    def _connect(self):
+    def _connect(self, handshake):
         self._state = _State.CONNECTING
 
+        def _unwrap_client(wrapper):
+            return wrapper.wrapped.client
+
+        def _do_handshake(client):
+            hd = maybeDeferred(handshake, client)
+            hd.addCallback(lambda _: client)
+            return hd
+
         d = self._endpoint.connect(self._factory)
+        d.addCallback(_unwrap_client)
+        if handshake is not None:
+            d.addCallback(_do_handshake)
+
         d.addCallbacks(self._connection_made, self._connection_failed)
 
-    def connection(self):
+    def connection(self, handshake=None):
+        """
+        Connects if necessary, returns existing one if it can.
+
+        :param handshake: A function to be called with the client
+                          to complete the handshake.
+
+        :returns: thrift connection, deferred if necessary
+
+        """
         if self._state == _State.CONNECTED:
             return succeed(self._current_client)
         elif self._state == _State.DISCONNECTING:
             return fail(ClientDisconnecting())
         elif self._state == _State.NOT_CONNECTED:
             d = self._notify_on_connect()
-            self._connect()
+            self._connect(handshake)
             return d
         else:
             assert self._state == _State.CONNECTING
             return self._notify_on_connect()
 
     def disconnect(self):
+        """
+        Disconnects.
+
+        You probably don't need to use this unless you are writing
+        unit tests.
+        """
         if self._state == _State.CONNECTED:
             self._state = _State.DISCONNECTING
 

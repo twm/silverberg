@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Test the client."""
 import mock
 
 from twisted.internet import defer
@@ -23,7 +24,11 @@ from silverberg.test.util import BaseTestCase
 
 
 class MockClientTests(BaseTestCase):
+
+    """Test the client."""
+
     def setUp(self):
+        """Setup the mock objects for the tests."""
         self.endpoint = mock.Mock()
         self.client_proto = mock.Mock()
 
@@ -94,6 +99,7 @@ class MockClientTests(BaseTestCase):
         self.endpoint.connect.side_effect = _connect
 
     def test_login(self):
+        """Test that login works as expected."""
         client = CQLClient(self.endpoint, 'blah', 'groucho', 'swordfish')
 
         d = client.describe_version()
@@ -107,6 +113,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.login.assert_called_once_with(authreq)
 
     def test_bad_keyspace(self):
+        """Ensure that a bad keyspace results in an errback."""
         self.client_proto.set_keyspace.return_value = defer.fail(ttypes.NotFoundException())
         client = CQLClient(self.endpoint, 'blah')
 
@@ -115,6 +122,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
     def test_describe_version(self):
+        """Connect and check the version."""
         client = CQLClient(self.endpoint, 'blah')
 
         d = client.describe_version()
@@ -124,6 +132,11 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_value(self):
+        """
+        Test that a CQL response that is an integer value is
+        processed correctly (e.g. SELECT COUNT).
+
+        """
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.INT, num=1)
         client = CQLClient(self.endpoint, 'blah')
 
@@ -134,6 +147,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array(self):
+        """Test that a full CQL response (e.g. SELECT) works."""
         expected = [
             {"cols": [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
              "key": "blah"}]
@@ -149,6 +163,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array_deserial(self):
+        """Make sure that values that need to be deserialized correctly are."""
         expected = [
             {"cols": [{"name": "fff", "timestamp": None, 'ttl': None, "value": 1222}],
              "key": "blah"}]
@@ -164,6 +179,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert(self):
+        """Test a mock CQL insert with a VOID response works."""
         expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
@@ -178,6 +194,7 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert_vars(self):
+        """Test that a CQL insert that has variables works."""
         expected = None
 
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
@@ -188,6 +205,31 @@ class MockClientTests(BaseTestCase):
         self.client_proto.execute_cql_query.assert_called_once_with(
             "UPDATE blah SET 'key'='frr', 'fff'=1234 WHERE KEY='frr'",
             2)
+        self.client_proto.set_keyspace.assert_called_once_with('blah')
+        self.client_proto.describe_keyspace.assert_called_once_with('blah')
+
+    def test_cql_sequence(self):
+        """
+        Test a sequence of operations results in only one handshake
+        but two requests.
+
+        """
+        expected = [
+            {"cols": [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
+             "key": "blah"}]
+
+        mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        client = CQLClient(self.endpoint, 'blah')
+
+        def _cqlProc(r):
+            return client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
+
+        d = client.execute("SELECT :sel FROM test_blah", {"sel": "ffh"})
+        d.addCallback(_cqlProc)
+        self.assertEqual(self.assertFired(d), expected)
+        self.client_proto.execute_cql_query.assert_any_call("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.execute_cql_query.assert_any_call("SELECT 'ffh' FROM test_blah", 2)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
