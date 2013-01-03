@@ -206,7 +206,7 @@ class CQLClient(object):
         prep_query = prepare(query, args)
 
         def _execute(client):
-            return client.execute_cql_query(prep_query,
+            return client.execute_cql3_query(prep_query,
                                             ttypes.Compression.NONE)
 
         def _proc_results(result):
