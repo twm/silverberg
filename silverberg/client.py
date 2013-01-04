@@ -32,6 +32,8 @@ from silverberg.thrift_client import OnDemandThriftClient
 # used to parse the CF name out of a select statement.
 selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
 
+from silverberg.cassandra.ttypes import ConsistencyLevel
+
 
 class CQLClient(object):
     """
@@ -164,7 +166,7 @@ class CQLClient(object):
             )
         return rows
 
-    def execute(self, query, args):
+    def execute(self, query, args, consistency=ConsistencyLevel.ONE):
         """
         Execute a CQL query against the server.
 
@@ -173,6 +175,9 @@ class CQLClient(object):
 
         :param args: The arguments to substitute
         :type args: dict.
+
+        :param consistency: The consistency level
+        :type consistency: ConsistencyLevel
 
         In order to avoid unpleasant issues of CQL injection
         (Hey, just because there's no SQL doesn't mean that Little
@@ -207,7 +212,7 @@ class CQLClient(object):
 
         def _execute(client):
             return client.execute_cql3_query(prep_query,
-                                            ttypes.Compression.NONE)
+                                             ttypes.Compression.NONE, consistency)
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
