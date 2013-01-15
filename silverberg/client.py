@@ -166,7 +166,7 @@ class CQLClient(object):
             )
         return rows
 
-    def execute(self, query, args, consistency=ConsistencyLevel.ONE):
+    def execute(self, query, args, consistency):
         """
         Execute a CQL query against the server.
 
@@ -227,3 +227,6 @@ class CQLClient(object):
         d.addCallback(_execute)
         d.addCallback(_proc_results)
         return d
+
+
+__all__ = ["CQLClient", "ConsistencyLevel"]
