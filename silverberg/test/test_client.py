@@ -16,7 +16,7 @@ import mock
 
 from twisted.internet import defer
 
-from silverberg.client import CQLClient
+from silverberg.client import CQLClient, ConsistencyLevel
 
 from silverberg.cassandra import ttypes
 
@@ -86,10 +86,10 @@ class MockClientTests(BaseTestCase):
         self.client_proto.describe_version.return_value = defer.succeed('1.2.3')
         self.client_proto.describe_keyspace.return_value = defer.succeed(ksDef)
 
-        def _execute_cql_query(*args, **kwargs):
+        def _execute_cql3_query(*args, **kwargs):
             return defer.succeed(self.mock_results)
 
-        self.client_proto.execute_cql_query.side_effect = _execute_cql_query
+        self.client_proto.execute_cql3_query.side_effect = _execute_cql3_query
 
         def _connect(factory):
             wrapper = mock.Mock()
@@ -140,9 +140,10 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.INT, num=1)
         client = CQLClient(self.endpoint, 'blah')
 
-        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
+        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"}, ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), 1)
-        self.client_proto.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.execute_cql3_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2,
+                                                                     ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
@@ -156,9 +157,10 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
         client = CQLClient(self.endpoint, 'blah')
 
-        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
+        d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"}, ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2)
+        self.client_proto.execute_cql3_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2,
+                                                                     ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
@@ -172,9 +174,10 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
         client = CQLClient(self.endpoint, 'blah')
 
-        d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"})
+        d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"}, ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with("SELECT * FROM 'blah';", 2)
+        self.client_proto.execute_cql3_query.assert_called_once_with("SELECT * FROM 'blah';", 2,
+                                                                     ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
@@ -185,11 +188,12 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
         client = CQLClient(self.endpoint, 'blah')
 
-        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'", {})
+        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'", {},
+                           ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with(
+        self.client_proto.execute_cql3_query.assert_called_once_with(
             "UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'",
-            2)
+            2, ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
@@ -200,11 +204,12 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.VOID)
         client = CQLClient(self.endpoint, 'blah')
 
-        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=:val WHERE KEY='frr'", {"val": 1234})
+        d = client.execute("UPDATE blah SET 'key'='frr', 'fff'=:val WHERE KEY='frr'", {"val": 1234},
+                           ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_called_once_with(
+        self.client_proto.execute_cql3_query.assert_called_once_with(
             "UPDATE blah SET 'key'='frr', 'fff'=1234 WHERE KEY='frr'",
-            2)
+            2, ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
@@ -223,13 +228,17 @@ class MockClientTests(BaseTestCase):
         client = CQLClient(self.endpoint, 'blah')
 
         def _cqlProc(r):
-            return client.execute("SELECT :sel FROM test_blah", {"sel": "blah"})
+            return client.execute("SELECT :sel FROM test_blah", {"sel": "blah"},
+                                  ConsistencyLevel.ONE)
 
-        d = client.execute("SELECT :sel FROM test_blah", {"sel": "ffh"})
+        d = client.execute("SELECT :sel FROM test_blah", {"sel": "ffh"},
+                           ConsistencyLevel.ONE)
         d.addCallback(_cqlProc)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql_query.assert_any_call("SELECT 'blah' FROM test_blah", 2)
-        self.client_proto.execute_cql_query.assert_any_call("SELECT 'ffh' FROM test_blah", 2)
+        self.client_proto.execute_cql3_query.assert_any_call("SELECT 'blah' FROM test_blah", 2,
+                                                             ConsistencyLevel.ONE)
+        self.client_proto.execute_cql3_query.assert_any_call("SELECT 'ffh' FROM test_blah", 2,
+                                                             ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
