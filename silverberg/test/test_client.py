@@ -18,7 +18,7 @@ from twisted.internet import defer
 
 from silverberg.client import CQLClient, ConsistencyLevel
 
-from silverberg.cassandra import ttypes
+from silverberg.cassandra import ttypes, Cassandra
 
 from silverberg.test.util import BaseTestCase
 
@@ -30,7 +30,8 @@ class MockClientTests(BaseTestCase):
     def setUp(self):
         """Setup the mock objects for the tests."""
         self.endpoint = mock.Mock()
-        self.client_proto = mock.Mock()
+        self.client_proto = mock.Mock(Cassandra.Client)
+        self.twisted_transport = mock.Mock()
 
         ksDef = ttypes.KsDef(
             name='blah',
@@ -93,6 +94,7 @@ class MockClientTests(BaseTestCase):
 
         def _connect(factory):
             wrapper = mock.Mock()
+            wrapper.transport = self.twisted_transport
             wrapper.wrapped.client = self.client_proto
             return defer.succeed(wrapper)
 
@@ -242,6 +244,15 @@ class MockClientTests(BaseTestCase):
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
+    def test_disconnect(self):
+        """
+        When disconnect is called, the on demand thrift client is disconnected
+        """
+        client = CQLClient(self.endpoint, 'blah')
+        d = client.describe_version()
+        self.assertFired(d)
+        d = client.disconnect()
+        self.twisted_transport.loseConnection.assert_called_once_with()
 
 # class FaultTestCase(BaseTestCase):
 #     def setUp(self):

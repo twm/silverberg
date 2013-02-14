@@ -228,5 +228,14 @@ class CQLClient(object):
         d.addCallback(_proc_results)
         return d
 
+    def disconnect(self):
+        """
+        Disconnect from the cassandra cluster.  Likely to be used for testing
+        purposes only.
+
+        :return: a :class:`Deferred` that fires with None when disconnected.
+        """
+        return self._client.disconnect()
+
 
 __all__ = ["CQLClient", "ConsistencyLevel"]
