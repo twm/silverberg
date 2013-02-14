@@ -98,6 +98,7 @@ class OnDemandThriftClient(object):
                                              self._connection_lost)
 
         self._state = _State.NOT_CONNECTED
+        self._protocol = None
         self._current_client = None
         self._waiting_on_connect = deque()
         self._waiting_on_disconnect = deque()
@@ -140,6 +141,7 @@ class OnDemandThriftClient(object):
     def _connection_failed(self, reason):
         self._state = _State.NOT_CONNECTED
         self._current_client = None
+        self._protocol = None
 
         # XXX: Is the above state change sufficient to deal with re-entrancy?
 
@@ -151,6 +153,18 @@ class OnDemandThriftClient(object):
         self._state = _State.CONNECTING
 
         def _unwrap_client(wrapper):
+            # wrapper in this case is a _LossNotifyingWrapperProtocol, which
+            # wrapps a thrift.transport.TTwisted.ThriftClientProtocol,
+            # whose client is a silverberg.cassandra.Cassandra.Client,
+            # whose has an unrelated _transport instance variable that is a
+            # thrift.transport.TTwisted.TCallbackTransport, which is a subclass
+            # of thrift.transport.TTransport.TTransportBase, whose close method
+            # does nothing.
+
+            # so we need to save the _LossNotifyingWrapperProtocol, so that we
+            # can disconnect its transport, which is a Twisted ITransport
+            # object
+            self._protocol = wrapper
             return wrapper.wrapped.client
 
         def _do_handshake(client):
@@ -196,9 +210,7 @@ class OnDemandThriftClient(object):
         """
         if self._state == _State.CONNECTED:
             self._state = _State.DISCONNECTING
-
-            self._current_client.transport.loseConnection()
-
+            self._protocol.transport.loseConnection()
             return self._notify_on_disconnect()
         if self._state == _State.CONNECTING:
             return fail(ClientConnecting())
