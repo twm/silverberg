@@ -98,7 +98,7 @@ class OnDemandThriftClient(object):
                                              self._connection_lost)
 
         self._state = _State.NOT_CONNECTED
-        self._protocol = None
+        self._transport = None
         self._current_client = None
         self._waiting_on_connect = deque()
         self._waiting_on_disconnect = deque()
@@ -141,7 +141,7 @@ class OnDemandThriftClient(object):
     def _connection_failed(self, reason):
         self._state = _State.NOT_CONNECTED
         self._current_client = None
-        self._protocol = None
+        self._transport = None
 
         # XXX: Is the above state change sufficient to deal with re-entrancy?
 
@@ -164,7 +164,7 @@ class OnDemandThriftClient(object):
             # so we need to save the _LossNotifyingWrapperProtocol, so that we
             # can disconnect its transport, which is a Twisted ITransport
             # object
-            self._protocol = wrapper
+            self._transport = wrapper.transport
             return wrapper.wrapped.client
 
         def _do_handshake(client):
@@ -210,7 +210,7 @@ class OnDemandThriftClient(object):
         """
         if self._state == _State.CONNECTED:
             self._state = _State.DISCONNECTING
-            self._protocol.transport.loseConnection()
+            self._transport.loseConnection()
             return self._notify_on_disconnect()
         if self._state == _State.CONNECTING:
             return fail(ClientConnecting())
