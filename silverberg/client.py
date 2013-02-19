@@ -228,6 +228,43 @@ class CQLClient(object):
         d.addCallback(_proc_results)
         return d
 
+
+class TestingCQLClient(CQLClient):
+    """
+    Cassandra CQL Client object to be used for testing purposes.  This client
+    exposes the underlying Twisted transport and provides convenience functions
+    so that it can be used in trial tests.
+
+    Instantiate it and it will on-demand create a connection to the Cassandra
+    cluster.
+
+    :param cass_endpoint: A twisted Endpoint
+    :type cass_endpoint: twisted.internet.interfaces.IStreamClientEndpoint
+
+    :param keyspace: A keyspace to connect to
+    :type keyspace: str.
+
+    :param user: Username to connect with.
+    :type user: str.
+
+    :param password: Username to connect with.
+    :type password: str.
+
+    Upon connecting, the client will authenticate (if paramaters are provided)
+    and obtain the keyspace definition so that it can de-serialize properly.
+
+    n.b. Cassandra presently doesn't have any real support for password
+    authentication in the mainline as the simple access control options
+    are disabled; you probably need to secure your Cassandra server using
+    different methods and the password code isn't heavily tested.
+    """
+    @property
+    def transport(self):
+        """
+        Get the underlying Twisted transport.
+        """
+        return self._client._transport
+
     def disconnect(self):
         """
         Disconnect from the cassandra cluster.  Likely to be used for testing
@@ -237,5 +274,31 @@ class CQLClient(object):
         """
         return self._client.disconnect()
 
+    def pause(self):
+        """
+        Pause the client by removing the connection from the reactor.  This is
+        useful in tests if, for instance, latency is a problem and you do not
+        want to disconnect and reconnect between every test.  If you do not
+        disconnect and reconnect, and you do not pause and resume, then if you
+        use Twisted's testing framework (``trial``), tests will fail with a
+        dirty reactor warning.
+        """
+        if self.transport:
+            self.transport.stopReading()
+            self.transport.stopWriting()
 
-__all__ = ["CQLClient", "ConsistencyLevel"]
+    def resume(self):
+        """
+        Resume the client by making sure the reactor is aware of the
+        connection. This is useful in tests if, for instance, latency is a
+        problem and you do not want to disconnect and reconnect between every
+        test.  If you do not disconnect and reconnect, and you do not pause
+        and resume, then if you use Twisted's testing framework (``trial``),
+        tests will fail with a dirty reactor warning.
+        """
+        if self.transport:
+            self.transport.startReading()
+            self.transport.startWriting()
+
+
+__all__ = ["CQLClient", "ConsistencyLevel", "TestingCQLClient"]

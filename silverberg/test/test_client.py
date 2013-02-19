@@ -16,7 +16,7 @@ import mock
 
 from twisted.internet import defer
 
-from silverberg.client import CQLClient, ConsistencyLevel
+from silverberg.client import CQLClient, ConsistencyLevel, TestingCQLClient
 
 from silverberg.cassandra import ttypes, Cassandra
 
@@ -244,15 +244,61 @@ class MockClientTests(BaseTestCase):
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
+
+class MockTestingClientTests(MockClientTests):
+    """
+    Test the conveniences provided by the testing client
+    """
+
+    def test_transport_exposed(self):
+        """
+        The transport exposed is the underlying twisted transport, if it exists
+        """
+        client = TestingCQLClient(self.endpoint, 'meh')
+        self.assertIsNone(client.transport)  # has not connected yet
+        self.assertFired(client.describe_version())
+        self.assertIs(client.transport, self.twisted_transport)
+
     def test_disconnect(self):
         """
         When disconnect is called, the on demand thrift client is disconnected
         """
-        client = CQLClient(self.endpoint, 'blah')
-        d = client.describe_version()
-        self.assertFired(d)
-        d = client.disconnect()
+        client = TestingCQLClient(self.endpoint, 'blah')
+        self.assertFired(client.describe_version())
+        client.disconnect()
         self.twisted_transport.loseConnection.assert_called_once_with()
+
+    def test_pause(self):
+        """
+        When pausing, stop reading and stop writing on the transport are called
+        if the transport exists.
+        """
+        client = TestingCQLClient(self.endpoint, 'meh')
+        client.pause()
+        self.assertEqual(len(self.twisted_transport.stopReading.mock_calls), 0)
+        self.assertEqual(len(self.twisted_transport.stopWriting.mock_calls), 0)
+
+        self.assertFired(client.describe_version())
+        client.pause()
+        self.twisted_transport.stopReading.assert_called_one_with()
+        self.twisted_transport.stopWriting.assert_called_one_with()
+
+    def test_resume(self):
+        """
+        When resuming, start reading and start writing on the transport are
+        called if the transport exists.
+        """
+        client = TestingCQLClient(self.endpoint, 'meh')
+        client.pause()
+        self.assertEqual(len(self.twisted_transport.startReading.mock_calls),
+                         0)
+        self.assertEqual(len(self.twisted_transport.startWriting.mock_calls),
+                         0)
+
+        self.assertFired(client.describe_version())
+        client.pause()
+        self.twisted_transport.startReading.assert_called_one_with()
+        self.twisted_transport.startWriting.assert_called_one_with()
 
 # class FaultTestCase(BaseTestCase):
 #     def setUp(self):
