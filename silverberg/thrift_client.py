@@ -154,7 +154,7 @@ class OnDemandThriftClient(object):
 
         def _unwrap_client(wrapper):
             # wrapper in this case is a _LossNotifyingWrapperProtocol, which
-            # wrapps a thrift.transport.TTwisted.ThriftClientProtocol,
+            # wraps a thrift.transport.TTwisted.ThriftClientProtocol,
             # whose client is a silverberg.cassandra.Cassandra.Client,
             # whose has an unrelated _transport instance variable that is a
             # thrift.transport.TTwisted.TCallbackTransport, which is a subclass
