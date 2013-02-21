@@ -28,6 +28,7 @@ from silverberg.thrift_client import (
     _ThriftClientFactory
 )
 
+from silverberg.cassandra.Cassandra import Client
 from silverberg.test.util import BaseTestCase
 
 
@@ -57,12 +58,14 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.addCleanup(self.factory_patcher.stop)
 
         self.endpoint = mock.Mock()
-        self.client_proto = mock.Mock()
+        self.twisted_transport = mock.Mock()
+        self.thrift_cassandra_client = mock.Mock(Client)
 
         def _connect(factory):
             self.connect_d = Deferred()
             wrapper = mock.Mock()
-            wrapper.wrapped.client = self.client_proto
+            wrapper.transport = self.twisted_transport
+            wrapper.wrapped.client = self.thrift_cassandra_client
             return self.connect_d.addCallback(lambda _: wrapper)
 
         self.endpoint.connect.side_effect = _connect
@@ -74,7 +77,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.connect_d.callback(None)
 
-        self.assertEqual(self.assertFired(d), self.client_proto)
+        self.assertEqual(self.assertFired(d), self.thrift_cassandra_client)
 
     def test_initial_handshake_non_deferred(self):
         def _mock_handshake(client):
@@ -86,7 +89,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.connect_d.callback(None)
 
-        self.assertEqual(self.assertFired(d), self.client_proto)
+        self.assertEqual(self.assertFired(d), self.thrift_cassandra_client)
         m.assert_called_once()
 
     def test_initial_handshake_deferred(self):
@@ -98,7 +101,7 @@ class OnDemandThriftClientTests(BaseTestCase):
         d = self.client.connection(m)
         self.connect_d.callback(None)
 
-        self.assertEqual(self.assertFired(d), self.client_proto)
+        self.assertEqual(self.assertFired(d), self.thrift_cassandra_client)
         m.assert_called_once()
 
     def test_connected(self):
@@ -110,7 +113,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.assertNotIdentical(d1, d2)
 
-        self.assertEqual(self.assertFired(d2), self.client_proto)
+        self.assertEqual(self.assertFired(d2), self.thrift_cassandra_client)
 
     def test_connect_while_connecting(self):
         d1 = self.client.connection()
@@ -121,8 +124,8 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.connect_d.callback(None)
 
-        self.assertEqual(self.assertFired(d1), self.client_proto)
-        self.assertEqual(self.assertFired(d2), self.client_proto)
+        self.assertEqual(self.assertFired(d1), self.thrift_cassandra_client)
+        self.assertEqual(self.assertFired(d2), self.thrift_cassandra_client)
 
     def test_connect_failed(self):
         d = self.client.connection()
@@ -163,7 +166,7 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         d2 = self.client.disconnect()
 
-        self.client_proto.transport.loseConnection.assert_called_once()
+        self.twisted_transport.loseConnection.assert_called_once()
 
         self.connection_lost(Failure(_TestConnectionDone()))
 
@@ -191,6 +194,9 @@ class OnDemandThriftClientTests(BaseTestCase):
         d2 = self.client.disconnect()
 
         self.assertFailed(d2, ClientConnecting)
+        self.assertEqual(
+            len(self.twisted_transport.loseConnection.mock_calls), 0,
+            "loseConnection should not be called since not connected")
 
         self.connect_d.callback(None)
 
@@ -201,9 +207,13 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.connect_d.callback(None)
 
         d1 = self.client.disconnect()
+        self.twisted_transport.reset_mock()
         d2 = self.client.disconnect()
 
         self.connection_lost(Failure(_TestConnectionDone()))
+        self.assertEqual(
+            len(self.twisted_transport.loseConnection.mock_calls), 0,
+            "loseConnection should not be called since not connected")
 
         self.assertFired(d1)
         self.assertFired(d2)
@@ -211,6 +221,9 @@ class OnDemandThriftClientTests(BaseTestCase):
     def test_disconnect_while_not_connected(self):
         d1 = self.client.disconnect()
         self.assertIdentical(self.assertFired(d1), None)
+        self.assertEqual(
+            len(self.twisted_transport.loseConnection.mock_calls), 0,
+            "loseConnection should not be called since not connected")
 
 
 class LossNotifyingWrapperProtocolTests(BaseTestCase):

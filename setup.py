@@ -1,6 +1,7 @@
 import os
 from setuptools import setup
 
+
 def getPackages(base):
     packages = []
 
@@ -15,7 +16,7 @@ def getPackages(base):
 
 setup(
     name='silverberg',
-    version='0.0.4',
+    version='0.0.5',
     description='Twisted CQL Cassandra Client',
     classifiers=[
         'Development Status :: 4 - Beta',
