@@ -30,41 +30,44 @@ _lock_insert_query = 'INSERT INTO {cf} ("lockId","uuid") VALUES (:lockId,:uuid);
 _lock_read_query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId;'
 _lock_delete_query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "uuid"=:uuid;'
 
+
 class UnableToAcquireLockError(Exception):
     def __init__(self, lock_table, lock_id):
         super(UnableToAcquireLockError, self).__init__(
-            "Unable to acquire lock {id} on {table}").format(
-            id=lock_id, table=lock_table)
+            "Unable to acquire lock {id} on {table}").format(id=lock_id,
+                                                             table=lock_table)
+
 
 class BasicLock:
-    def __init__(self, client, lock_table, lock_id): 
+    def __init__(self, client, lock_table, lock_id):
         self.client = client
         self.lock_table = lock_table
         self.lock_id = lock_id
         self._lock_uuid = uuid.uuid4()
 
     def release(self):
-        d = self.client.execute(_lock_delete_query.format(cf=self.lock_table), 
-                            {'lockId': self.lock_id, 'uuid': self._lock_uuid},
-                            ConsistencyLevel.QUORUM)
+        d = self.client.execute(_lock_delete_query.format(cf=self.lock_table),
+                                {'lockId': self.lock_id, 'uuid': self._lock_uuid},
+                                ConsistencyLevel.QUORUM)
         return d
 
     def acquire(self):
         def _readBack(ignored):
-            return self.client.execute(_lock_read_query.format(cf=self.lock_table), 
+            return self.client.execute(_lock_read_query.format(cf=self.lock_table),
                                        {'lockId': self.lock_id}, ConsistencyLevel.QUORUM)
+
         def _checkReadBack(count):
             # Parse response!
-            if (count == 1): 
+            if (count == 1):
                 return succeed(None)
             else:
-                self.release().addCallback(lambda _: 
-                                           fail(UnableToAcquireLockError(self.lock_table, 
+                self.release().addCallback(lambda _:
+                                           fail(UnableToAcquireLockError(self.lock_table,
                                                                          self.lock_id)))
 
-        d = self.client.execute(_lock_insert_query.format(cf=self.lock_table), 
-                            {'lockId': self.lock_id, 'uuid': self._lock_uuid},
-                            ConsistencyLevel.QUORUM)
+        d = self.client.execute(_lock_insert_query.format(cf=self.lock_table),
+                                {'lockId': self.lock_id, 'uuid': self._lock_uuid},
+                                ConsistencyLevel.QUORUM)
         d.addCallback(_readBack)
         d.addCallback(_checkReadBack)
         return d
