@@ -123,12 +123,8 @@ class CQLClient(object):
         d.addCallback(_vers)
         return d
 
-    def _unmarshal_result(self, cfname, schema, raw_rows):
+    def _unmarshal_result(self, schema, raw_rows):
         rows = []
-        if cfname not in self._validators:
-            validator = None
-        else:
-            validator = self._validators[cfname]
 
         def _unmarshal_val(type, val):
             if type is None:
@@ -144,8 +140,6 @@ class CQLClient(object):
             #name, ergo, we're passing back an array instead of a hash
             #keyed by key name
             key = raw_row.key
-            if validator is not None:
-                key = _unmarshal_val(validator['key'], raw_row.key)
             for raw_col in raw_row.columns:
                 specific = schema.value_types.get(raw_col.name)
                 temp_col = {"timestamp": raw_col.timestamp,
@@ -208,8 +202,7 @@ class CQLClient(object):
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
-                cfname = selectRe.match(prep_query).group(1)
-                return self._unmarshal_result(cfname, result.schema, result.rows)
+                return self._unmarshal_result(result.schema, result.rows)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:
