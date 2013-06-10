@@ -71,22 +71,6 @@ class CQLClient(object):
         self._password = password
         self._validators = {}
 
-    def _learn(self, client):
-        def _learn(keyspaceDef):
-            for cf_def in keyspaceDef.cf_defs:
-                sp_val = {}
-                for col_meta in cf_def.column_metadata:
-                    sp_val[col_meta.name] = col_meta.validation_class
-                self._validators[cf_def.name] = {
-                    "key": cf_def.key_validation_class,
-                    "comparator": cf_def.comparator_type,
-                    "defaultValidator": cf_def.default_validation_class,
-                    "specific_validators": sp_val
-                }
-            return client
-        d = client.describe_keyspace(self._keyspace)
-        return d.addCallback(_learn)
-
     def _set_keyspace(self, client):
         d = client.set_keyspace(self._keyspace)
         return d.addCallback(lambda _: client)
@@ -104,7 +88,6 @@ class CQLClient(object):
             if self._user and self._password:
                 d.addCallback(self._login)
             d.addCallback(self._set_keyspace)
-            d.addCallback(self._learn)
             return d
 
         ds = self._client.connection(_handshake)

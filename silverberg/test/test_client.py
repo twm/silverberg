@@ -35,59 +35,11 @@ class MockClientTests(BaseTestCase):
         self.client_proto = mock.Mock(Cassandra.Client)
         self.twisted_transport = mock.Mock()
 
-        ksDef = ttypes.KsDef(
-            name='blah',
-            cf_defs=[ttypes.CfDef(
-                comment='',
-                key_validation_class='org.apache.cassandra.db.marshal.AsciiType',
-                min_compaction_threshold=4,
-                key_cache_save_period_in_seconds=None,
-                gc_grace_seconds=864000,
-                default_validation_class='org.apache.cassandra.db.marshal.UTF8Type',
-                max_compaction_threshold=32,
-                read_repair_chance=0.1,
-                compression_options={
-                    'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'},
-                bloom_filter_fp_chance=None,
-                id=1004,
-                keyspace='blah',
-                key_cache_size=None,
-                replicate_on_write=True,
-                subcomparator_type=None,
-                merge_shards_chance=None,
-                row_cache_provider=None,
-                row_cache_save_period_in_seconds=None,
-                column_type='Standard',
-                memtable_throughput_in_mb=None,
-                memtable_flush_after_mins=None,
-                column_metadata=[
-                    ttypes.ColumnDef(
-                        index_type=None,
-                        index_name=None,
-                        validation_class='org.apache.cassandra.db.marshal.IntegerType',
-                        name='fff',
-                        index_options=None)],
-                key_alias=None,
-                dclocal_read_repair_chance=0.0,
-                name='blah',
-                compaction_strategy_options={},
-                row_cache_keys_to_save=None,
-                compaction_strategy='org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy',
-                memtable_operations_in_millions=None,
-                caching='KEYS_ONLY',
-                comparator_type='org.apache.cassandra.db.marshal.UTF8Type',
-                row_cache_size=None)],
-            strategy_options={'replication_factor': '1'},
-            strategy_class='org.apache.cassandra.locator.SimpleStrategy',
-            replication_factor=None,
-            durable_writes=True)
-
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.INT, num=1)
 
         self.client_proto.set_keyspace.return_value = defer.succeed(None)
         self.client_proto.login.return_value = defer.succeed(None)
         self.client_proto.describe_version.return_value = defer.succeed('1.2.3')
-        self.client_proto.describe_keyspace.return_value = defer.succeed(ksDef)
 
         def _execute_cql3_query(*args, **kwargs):
             return defer.succeed(self.mock_results)
@@ -133,7 +85,6 @@ class MockClientTests(BaseTestCase):
         self.assertEqual(self.assertFired(d), '1.2.3')
         self.assertEqual(self.client_proto.describe_version.call_count, 1)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_value(self):
         """
@@ -149,7 +100,6 @@ class MockClientTests(BaseTestCase):
         self.client_proto.execute_cql3_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2,
                                                                      ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array(self):
         """Test that a full CQL response (e.g. SELECT) works."""
@@ -169,7 +119,6 @@ class MockClientTests(BaseTestCase):
         self.client_proto.execute_cql3_query.assert_called_once_with("SELECT 'blah' FROM test_blah", 2,
                                                                      ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_array_deserial(self):
         """Make sure that values that need to be deserialized correctly are."""
@@ -190,7 +139,6 @@ class MockClientTests(BaseTestCase):
         self.client_proto.execute_cql3_query.assert_called_once_with("SELECT * FROM 'blah';", 2,
                                                                      ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert(self):
         """Test a mock CQL insert with a VOID response works."""
@@ -206,7 +154,6 @@ class MockClientTests(BaseTestCase):
             "UPDATE blah SET 'key'='frr', 'fff'=1222 WHERE KEY='frr'",
             2, ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_insert_vars(self):
         """Test that a CQL insert that has variables works."""
@@ -222,7 +169,6 @@ class MockClientTests(BaseTestCase):
             "UPDATE blah SET 'key'='frr', 'fff'=1234 WHERE KEY='frr'",
             2, ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_sequence(self):
         """
@@ -252,7 +198,6 @@ class MockClientTests(BaseTestCase):
         self.client_proto.execute_cql3_query.assert_any_call("SELECT 'ffh' FROM test_blah", 2,
                                                              ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
-        self.client_proto.describe_keyspace.assert_called_once_with('blah')
 
     def test_cql_result_metadata(self):
         """
