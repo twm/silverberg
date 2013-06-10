@@ -138,17 +138,6 @@ class CQLClient(object):
             else:
                 return val
 
-        def _find_specific(col):
-            col_value_type = schema.value_types.get(col)
-            if col_value_type is not None:
-                return col_value_type
-            if validator is None:
-                return None
-            elif col in validator['specific_validators']:
-                return validator['specific_validators'][col]
-            else:
-                return validator['defaultValidator']
-
         for raw_row in raw_rows:
             cols = []
             #as it turns out, you can have multiple cols with the same
@@ -158,7 +147,7 @@ class CQLClient(object):
             if validator is not None:
                 key = _unmarshal_val(validator['key'], raw_row.key)
             for raw_col in raw_row.columns:
-                specific = _find_specific(raw_col.name)
+                specific = schema.value_types.get(raw_col.name)
                 temp_col = {"timestamp": raw_col.timestamp,
                             "name": raw_col.name,
                             "ttl": raw_col.ttl,
