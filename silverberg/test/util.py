@@ -1,6 +1,7 @@
 from twisted.trial.unittest import TestCase
 from twisted.python import failure
 
+
 class BaseTestCase(TestCase):
     def assertFired(self, deferred):
         result = []
