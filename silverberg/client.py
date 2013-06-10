@@ -123,7 +123,7 @@ class CQLClient(object):
         d.addCallback(_vers)
         return d
 
-    def _unmarshal_result(self, cfname, raw_rows):
+    def _unmarshal_result(self, cfname, schema, raw_rows):
         rows = []
         if cfname not in self._validators:
             validator = None
@@ -139,6 +139,9 @@ class CQLClient(object):
                 return val
 
         def _find_specific(col):
+            col_value_type = schema.value_types.get(col)
+            if col_value_type is not None:
+                return col_value_type
             if validator is None:
                 return None
             elif col in validator['specific_validators']:
@@ -217,7 +220,7 @@ class CQLClient(object):
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
                 cfname = selectRe.match(prep_query).group(1)
-                return self._unmarshal_result(cfname, result.rows)
+                return self._unmarshal_result(cfname, result.schema, result.rows)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:

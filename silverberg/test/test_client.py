@@ -14,6 +14,8 @@
 """Test the client."""
 import mock
 
+from uuid import UUID
+
 from twisted.internet import defer
 
 from silverberg.client import CQLClient, ConsistencyLevel, TestingCQLClient
@@ -156,7 +158,10 @@ class MockClientTests(BaseTestCase):
              "key": "blah"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        self.mock_results = ttypes.CqlResult(
+            type=ttypes.CqlResultType.ROWS,
+            rows=mockrow,
+            schema=ttypes.CqlMetadata(value_types={}))
         client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"}, ConsistencyLevel.ONE)
@@ -173,7 +178,11 @@ class MockClientTests(BaseTestCase):
              "key": "blah"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS,
+                                             rows=mockrow,
+                                             schema=ttypes.CqlMetadata(value_types={
+                                                 'fff': 'org.apache.cassandra.db.marshal.IntegerType'
+                                             }))
         client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"}, ConsistencyLevel.ONE)
@@ -226,7 +235,8 @@ class MockClientTests(BaseTestCase):
              "key": "blah"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow)
+        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow,
+                                             schema=ttypes.CqlMetadata(value_types={}))
         client = CQLClient(self.endpoint, 'blah')
 
         def _cqlProc(r):
@@ -243,6 +253,34 @@ class MockClientTests(BaseTestCase):
                                                              ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
         self.client_proto.describe_keyspace.assert_called_once_with('blah')
+
+    def test_cql_result_metadata(self):
+        """
+        execute should use the metadata included with the CqlResult for
+        deserializing values.
+        """
+        expected = [{
+            "cols": [{"name": "foo", "timestamp": None, "ttl": None,
+                      "value": UUID('114b8328-d1f1-11e2-8683-000c29bc9473')}],
+            "key": "blah"}]
+
+        mockrow = [
+            ttypes.CqlRow(
+                key='blah',
+                columns=[
+                    ttypes.Column(
+                        name='foo',
+                        value='\x11K\x83(\xd1\xf1\x11\xe2\x86\x83\x00\x0c)\xbc\x94s')])]
+
+        self.mock_results = ttypes.CqlResult(
+            type=ttypes.CqlResultType.ROWS,
+            rows=mockrow,
+            schema=ttypes.CqlMetadata(value_types={
+                'foo': 'org.apache.cassandra.db.marshal.TimeUUIDType'}))
+
+        client = CQLClient(self.endpoint, 'blah')
+        d = client.execute("SELECT * FROM blah;", {}, ConsistencyLevel.ONE)
+        self.assertEqual(self.assertFired(d), expected)
 
 
 class MockTestingClientTests(MockClientTests):
