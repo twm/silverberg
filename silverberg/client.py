@@ -110,12 +110,9 @@ class CQLClient(object):
         rows = []
 
         def _unmarshal_val(type, val):
-            if type is None:
-                return val
-            elif type in unmarshallers:
+            if type in unmarshallers:
                 return unmarshallers[type](val)
-            else:
-                return val
+            return val
 
         for raw_row in raw_rows:
             cols = []
