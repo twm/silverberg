@@ -28,10 +28,6 @@ from silverberg.marshal import prepare, unmarshallers
 import re
 
 from silverberg.thrift_client import OnDemandThriftClient
-
-# used to parse the CF name out of a select statement.
-selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
-
 from silverberg.cassandra.ttypes import ConsistencyLevel
 
 
