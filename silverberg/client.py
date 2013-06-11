@@ -25,8 +25,6 @@ from twisted.internet.defer import succeed
 
 from silverberg.marshal import prepare, unmarshallers
 
-import re
-
 from silverberg.thrift_client import OnDemandThriftClient
 from silverberg.cassandra.ttypes import ConsistencyLevel
 
