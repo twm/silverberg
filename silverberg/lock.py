@@ -39,11 +39,31 @@ class UnableToAcquireLockError(Exception):
 
 
 class BasicLock:
+    """A locking mechanism for Cassandra."""
+
     def __init__(self, client, lock_table, lock_id):
         self.client = client
         self.lock_table = lock_table
         self.lock_id = lock_id
         self._lock_uuid = uuid.uuid4()
+
+    def _read_lock(self, ignored):
+        return self.client.execute(_lock_read_query.format(cf=self.lock_table),
+                                   {'lockId': self.lock_id}, ConsistencyLevel.QUORUM)
+
+    def _verify_lock(self, count):
+        # TODO: Parse response!
+        if (count == 1):
+            return succeed(None)
+        else:
+            return self.release().addCallback(lambda _:
+                                              fail(UnableToAcquireLockError(self.lock_table,
+                                                                            self.lock_id)))
+
+    def _write_lock(self):
+        return self.client.execute(_lock_insert_query.format(cf=self.lock_table),
+                                   {'lockId': self.lock_id, 'uuid': self._lock_uuid},
+                                   ConsistencyLevel.QUORUM)
 
     def release(self):
         d = self.client.execute(_lock_delete_query.format(cf=self.lock_table),
@@ -52,22 +72,7 @@ class BasicLock:
         return d
 
     def acquire(self):
-        def _readBack(ignored):
-            return self.client.execute(_lock_read_query.format(cf=self.lock_table),
-                                       {'lockId': self.lock_id}, ConsistencyLevel.QUORUM)
-
-        def _checkReadBack(count):
-            # Parse response!
-            if (count == 1):
-                return succeed(None)
-            else:
-                self.release().addCallback(lambda _:
-                                           fail(UnableToAcquireLockError(self.lock_table,
-                                                                         self.lock_id)))
-
-        d = self.client.execute(_lock_insert_query.format(cf=self.lock_table),
-                                {'lockId': self.lock_id, 'uuid': self._lock_uuid},
-                                ConsistencyLevel.QUORUM)
-        d.addCallback(_readBack)
-        d.addCallback(_checkReadBack)
+        d = self._write_lock()
+        d.addCallback(self._read_lock)
+        d.addCallback(self._verify_lock)
         return d
