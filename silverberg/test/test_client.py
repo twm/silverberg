@@ -86,6 +86,34 @@ class MockClientTests(BaseTestCase):
         self.assertEqual(self.client_proto.describe_version.call_count, 1)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
+    def test_unsupported_types_are_returned_as_bytes(self):
+        """
+        When a table includes a column of a type that is not explicitly
+        supported we should return the raw bytes instead of attempting to
+        unmarshal the data.
+        """
+        mock_rows = [ttypes.CqlRow(
+            key='',
+            columns=[
+                ttypes.Column(
+                    name='an_unknown_type',
+                    value="\x00\x01")])]
+
+        self.mock_results = ttypes.CqlResult(
+            type=ttypes.CqlResultType.ROWS,
+            rows=mock_rows,
+            schema=ttypes.CqlMetadata(value_types={'an_unknown_type': 'an.unknown.type'}))
+
+        client = CQLClient(self.endpoint, 'blah')
+        d = client.execute("SELECT * FROM blah", {}, ConsistencyLevel.ONE)
+        results = self.assertFired(d)
+
+        self.assertEqual(results, [{'key': '',
+                                    'cols': [{'name': 'an_unknown_type',
+                                              'timestamp': None,
+                                              'ttl': None,
+                                              'value': '\x00\x01'}]}])
+
     def test_cql_value(self):
         """
         Test that a CQL response that is an integer value is
