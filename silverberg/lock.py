@@ -38,7 +38,7 @@ class UnableToAcquireLockError(Exception):
                                                              table=lock_table)
 
 
-class BasicLock:
+class BasicLock(object):
     """A locking mechanism for Cassandra."""
 
     def __init__(self, client, lock_table, lock_id):
