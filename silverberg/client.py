@@ -105,6 +105,9 @@ class CQLClient(object):
         def _unmarshal_val(type, val):
             if type in unmarshallers:
                 return unmarshallers[type](val)
+            # XXX: We do not currently implement the full range of types.
+            # So we can not unmarshal all types in which case we should just
+            # return the raw bytes.
             return val
 
         for raw_row in raw_rows:
@@ -114,7 +117,7 @@ class CQLClient(object):
             #keyed by key name
             key = raw_row.key
             for raw_col in raw_row.columns:
-                specific = schema.value_types.get(raw_col.name)
+                specific = schema.value_types[raw_col.name]
                 temp_col = {"timestamp": raw_col.timestamp,
                             "name": raw_col.name,
                             "ttl": raw_col.ttl,

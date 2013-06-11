@@ -111,7 +111,7 @@ class MockClientTests(BaseTestCase):
         self.mock_results = ttypes.CqlResult(
             type=ttypes.CqlResultType.ROWS,
             rows=mockrow,
-            schema=ttypes.CqlMetadata(value_types={}))
+            schema=ttypes.CqlMetadata(value_types={'foo': 'org.apache.cassandra.db.marshal.UTF8Type'}))
         client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT :sel FROM test_blah", {"sel": "blah"}, ConsistencyLevel.ONE)
@@ -181,8 +181,10 @@ class MockClientTests(BaseTestCase):
              "key": "blah"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, rows=mockrow,
-                                             schema=ttypes.CqlMetadata(value_types={}))
+        self.mock_results = ttypes.CqlResult(
+            type=ttypes.CqlResultType.ROWS, rows=mockrow,
+            schema=ttypes.CqlMetadata(
+                value_types={'foo': 'org.apache.cassandra.db.marshal.UTF8Type'}))
         client = CQLClient(self.endpoint, 'blah')
 
         def _cqlProc(r):
