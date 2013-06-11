@@ -65,7 +65,6 @@ class CQLClient(object):
         self._keyspace = keyspace
         self._user = user
         self._password = password
-        self._validators = {}
 
     def _set_keyspace(self, client):
         d = client.set_keyspace(self._keyspace)
