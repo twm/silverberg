@@ -108,11 +108,7 @@ class MockClientTests(BaseTestCase):
         d = client.execute("SELECT * FROM blah", {}, ConsistencyLevel.ONE)
         results = self.assertFired(d)
 
-        self.assertEqual(results, [{'key': '',
-                                    'cols': [{'name': 'an_unknown_type',
-                                              'timestamp': None,
-                                              'ttl': None,
-                                              'value': '\x00\x01'}]}])
+        self.assertEqual(results, [{'an_unknown_type': '\x00\x01'}])
 
     def test_cql_value(self):
         """
@@ -131,9 +127,7 @@ class MockClientTests(BaseTestCase):
 
     def test_cql_array(self):
         """Test that a full CQL response (e.g. SELECT) works."""
-        expected = [
-            {"cols": [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
-             "key": "blah"}]
+        expected = [{"foo": "{P}"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
         self.mock_results = ttypes.CqlResult(
@@ -150,9 +144,7 @@ class MockClientTests(BaseTestCase):
 
     def test_cql_array_deserial(self):
         """Make sure that values that need to be deserialized correctly are."""
-        expected = [
-            {"cols": [{"name": "fff", "timestamp": None, 'ttl': None, "value": 1222}],
-             "key": "blah"}]
+        expected = [{"fff": 1222}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x04\xc6')])]
         self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS,
@@ -204,9 +196,7 @@ class MockClientTests(BaseTestCase):
         but two requests.
 
         """
-        expected = [
-            {"cols": [{"name": "foo", "timestamp": None, 'ttl': None, "value": "{P}"}],
-             "key": "blah"}]
+        expected = [{"foo": "{P}"}]
 
         mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='foo', value='{P}')])]
         self.mock_results = ttypes.CqlResult(
@@ -234,10 +224,7 @@ class MockClientTests(BaseTestCase):
         execute should use the metadata included with the CqlResult for
         deserializing values.
         """
-        expected = [{
-            "cols": [{"name": "foo", "timestamp": None, "ttl": None,
-                      "value": UUID('114b8328-d1f1-11e2-8683-000c29bc9473')}],
-            "key": "blah"}]
+        expected = [{"foo": UUID('114b8328-d1f1-11e2-8683-000c29bc9473')}]
 
         mockrow = [
             ttypes.CqlRow(

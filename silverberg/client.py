@@ -111,21 +111,11 @@ class CQLClient(object):
             return val
 
         for raw_row in raw_rows:
-            cols = []
-            #as it turns out, you can have multiple cols with the same
-            #name, ergo, we're passing back an array instead of a hash
-            #keyed by key name
-            key = raw_row.key
+            row = {}
             for raw_col in raw_row.columns:
                 specific = schema.value_types[raw_col.name]
-                temp_col = {"timestamp": raw_col.timestamp,
-                            "name": raw_col.name,
-                            "ttl": raw_col.ttl,
-                            "value": _unmarshal_val(specific, raw_col.value)}
-                cols.append(temp_col)
-            rows.append(
-                {"key": key, "cols": cols}
-            )
+                row[raw_col.name] = _unmarshal_val(specific, raw_col.value)
+            rows.append(row)
         return rows
 
     def execute(self, query, args, consistency):
@@ -140,6 +130,10 @@ class CQLClient(object):
 
         :param consistency: The consistency level
         :type consistency: ConsistencyLevel
+
+        :return: A Deferred that fires with an iterable of dictionaries, one
+            for each row where the keys in the dictionary are the names of
+            columns and the values the associated value in that column.
 
         In order to avoid unpleasant issues of CQL injection
         (Hey, just because there's no SQL doesn't mean that Little
@@ -161,14 +155,7 @@ class CQLClient(object):
 
         Example output::
 
-            [
-             {"cols":
-              [
-                {"name": "fff", "timestamp": None, 'ttl': None,
-                 "value": 1222}],
-              "key": "blah"
-             }
-            ]
+            [{"fff": 1222}]
         """
         prep_query = prepare(query, args)
 
