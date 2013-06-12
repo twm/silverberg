@@ -16,19 +16,11 @@
 
 Locking recipe for Cassandra
 
-Example locking table creation:
-
-CREATE TABLE locks ("lockId" ascii, "uuid" ascii, PRIMARY KEY("lockId","uuid"));
-
 """
 
 import uuid
 from silverberg.client import ConsistencyLevel
 from twisted.internet.defer import (succeed, fail)
-
-_lock_insert_query = 'INSERT INTO {cf} ("lockId","uuid") VALUES (:lockId,:uuid);'
-_lock_read_query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId;'
-_lock_delete_query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "uuid"=:uuid;'
 
 
 class UnableToAcquireLockError(Exception):
@@ -42,14 +34,15 @@ class BasicLock(object):
     """A locking mechanism for Cassandra."""
 
     def __init__(self, client, lock_table, lock_id):
-        self.client = client
-        self.lock_table = lock_table
-        self.lock_id = lock_id
-        self._lock_uuid = uuid.uuid4()
+        self._client = client
+        self._lock_table = lock_table
+        self._lock_id = lock_id
+        self._lock_claimId = uuid.uuid4()
 
     def _read_lock(self, ignored):
-        return self.client.execute(_lock_read_query.format(cf=self.lock_table),
-                                   {'lockId': self.lock_id}, ConsistencyLevel.QUORUM)
+        query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId;'
+        return self._client.execute(query.format(cf=self._lock_table),
+                                    {'lockId': self._lock_id}, ConsistencyLevel.QUORUM)
 
     def _verify_lock(self, count):
         # TODO: Parse response!
@@ -57,18 +50,32 @@ class BasicLock(object):
             return succeed(None)
         else:
             return self.release().addCallback(lambda _:
-                                              fail(UnableToAcquireLockError(self.lock_table,
-                                                                            self.lock_id)))
+                                              fail(UnableToAcquireLockError(self._lock_table,
+                                                                            self._lock_id)))
 
     def _write_lock(self):
-        return self.client.execute(_lock_insert_query.format(cf=self.lock_table),
-                                   {'lockId': self.lock_id, 'uuid': self._lock_uuid},
-                                   ConsistencyLevel.QUORUM)
+        query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;'
+        return self._client.execute(query.format(cf=self._lock_table),
+                                    {'lockId': self._lock_id, 'claimId': self._lock_claimId},
+                                    ConsistencyLevel.QUORUM)
+
+    @staticmethod
+    def ensure_schema(client, table_name):
+        query = 'CREATE TABLE {cf} ("lockId" ascii, "claimId" ascii, PRIMARY KEY("lockId", "claimId"));'
+        return client.execute(query.format(cf=table_name),
+                              {}, ConsistencyLevel.QUORUM)
+
+    @staticmethod
+    def drop_schema(client, table_name):
+        query = 'DROP TABLE {cf}'
+        return client.execute(query.format(cf=table_name),
+                              {}, ConsistencyLevel.QUORUM)
 
     def release(self):
-        d = self.client.execute(_lock_delete_query.format(cf=self.lock_table),
-                                {'lockId': self.lock_id, 'uuid': self._lock_uuid},
-                                ConsistencyLevel.QUORUM)
+        query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "claimId"=:claimId;'
+        d = self._client.execute(query.format(cf=self._lock_table),
+                                 {'lockId': self._lock_id, 'claimId': self._lock_claimId},
+                                 ConsistencyLevel.QUORUM)
         return d
 
     def acquire(self):

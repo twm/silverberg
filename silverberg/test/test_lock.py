@@ -17,6 +17,7 @@ import uuid
 import mock
 from twisted.internet import defer
 
+from silverberg.client import CQLClient
 from silverberg.lock import BasicLock
 from silverberg.test.util import BaseTestCase
 
@@ -25,7 +26,7 @@ class BasicLockTest(BaseTestCase):
     """Test the lock."""
 
     def setUp(self):
-        self.client = mock.Mock()
+        self.client = mock.Mock(CQLClient)
         self.table_name = 'lock'
 
         def _side_effect(*args, **kwargs):
@@ -65,16 +66,9 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = uuid.uuid4()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
-        lock._write_lock = mock.MagicMock(return_value=defer.succeed('written'))
-        lock._read_lock = mock.MagicMock(return_value=defer.succeed('read'))
-        lock._verify_lock = mock.MagicMock(return_value=defer.succeed('verified'))
 
         d = lock.acquire()
-
-        self.assertEqual(self.assertFired(d), 'verified')
-        lock._write_lock.assert_called_once()
-        lock._read_lock.assert_called_once_with('written')
-        lock._verify_lock.assert_called_once_with('read')
+        self.assertEqual(self.assertFired(d), None)
 
     def test_release(self):
         lock_uuid = uuid.uuid4()
