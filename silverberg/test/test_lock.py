@@ -76,9 +76,9 @@ class BasicLockTest(BaseTestCase):
     def test__write_lock(self):
         lock_uuid = uuid.uuid4()
 
-        lock = BasicLock(self.client, self.table_name, lock_uuid)
+        lock = BasicLock(self.client, self.table_name, lock_uuid, 1000)
         expected = [
-            'INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;',
+            'INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 1000;',
             {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2]
 
         d = lock._write_lock()

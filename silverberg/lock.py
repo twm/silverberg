@@ -31,13 +31,21 @@ class UnableToAcquireLockError(Exception):
 
 
 class BasicLock(object):
-    """A locking mechanism for Cassandra."""
+    """A locking mechanism for Cassandra.
 
-    def __init__(self, client, lock_table, lock_id):
+    Based on the lock implementation from Netflix's astyanax, the lock recipe
+    is a write, read, write operation. A record is written to the specified
+    Cassandra database table, then the table is read for the given lock. If the
+    count of the result is not 1, the lock was not acquired, so a write to
+    remove the lock is made. Otherwise, the lock is acquired.
+    """
+
+    def __init__(self, client, lock_table, lock_id, ttl=300):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
         self._lock_claimId = uuid.uuid4()
+        self._ttl = ttl
 
     def _read_lock(self, ignored):
         query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId;'
@@ -54,8 +62,8 @@ class BasicLock(object):
                                                                             self._lock_id)))
 
     def _write_lock(self):
-        query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;'
-        return self._client.execute(query.format(cf=self._lock_table),
+        query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL {ttl};'
+        return self._client.execute(query.format(cf=self._lock_table, ttl=self._ttl),
                                     {'lockId': self._lock_id, 'claimId': self._lock_claimId},
                                     ConsistencyLevel.QUORUM)
 
