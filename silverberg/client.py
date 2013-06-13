@@ -25,13 +25,7 @@ from twisted.internet.defer import succeed
 
 from silverberg.marshal import prepare, unmarshallers
 
-import re
-
 from silverberg.thrift_client import OnDemandThriftClient
-
-# used to parse the CF name out of a select statement.
-selectRe = re.compile(r"\s*SELECT\s+.+\s+FROM\s+[\']?(\w+)", re.I | re.M)
-
 from silverberg.cassandra.ttypes import ConsistencyLevel
 
 
@@ -69,23 +63,6 @@ class CQLClient(object):
         self._keyspace = keyspace
         self._user = user
         self._password = password
-        self._validators = {}
-
-    def _learn(self, client):
-        def _learn(keyspaceDef):
-            for cf_def in keyspaceDef.cf_defs:
-                sp_val = {}
-                for col_meta in cf_def.column_metadata:
-                    sp_val[col_meta.name] = col_meta.validation_class
-                self._validators[cf_def.name] = {
-                    "key": cf_def.key_validation_class,
-                    "comparator": cf_def.comparator_type,
-                    "defaultValidator": cf_def.default_validation_class,
-                    "specific_validators": sp_val
-                }
-            return client
-        d = client.describe_keyspace(self._keyspace)
-        return d.addCallback(_learn)
 
     def _set_keyspace(self, client):
         d = client.set_keyspace(self._keyspace)
@@ -104,7 +81,6 @@ class CQLClient(object):
             if self._user and self._password:
                 d.addCallback(self._login)
             d.addCallback(self._set_keyspace)
-            d.addCallback(self._learn)
             return d
 
         ds = self._client.connection(_handshake)
@@ -123,28 +99,16 @@ class CQLClient(object):
         d.addCallback(_vers)
         return d
 
-    def _unmarshal_result(self, cfname, raw_rows):
+    def _unmarshal_result(self, schema, raw_rows):
         rows = []
-        if cfname not in self._validators:
-            validator = None
-        else:
-            validator = self._validators[cfname]
 
         def _unmarshal_val(type, val):
-            if type is None:
-                return val
-            elif type in unmarshallers:
+            if type in unmarshallers:
                 return unmarshallers[type](val)
-            else:
-                return val
-
-        def _find_specific(col):
-            if validator is None:
-                return None
-            elif col in validator['specific_validators']:
-                return validator['specific_validators'][col]
-            else:
-                return validator['defaultValidator']
+            # XXX: We do not currently implement the full range of types.
+            # So we can not unmarshal all types in which case we should just
+            # return the raw bytes.
+            return val
 
         for raw_row in raw_rows:
             cols = []
@@ -152,10 +116,8 @@ class CQLClient(object):
             #name, ergo, we're passing back an array instead of a hash
             #keyed by key name
             key = raw_row.key
-            if validator is not None:
-                key = _unmarshal_val(validator['key'], raw_row.key)
             for raw_col in raw_row.columns:
-                specific = _find_specific(raw_col.name)
+                specific = schema.value_types[raw_col.name]
                 temp_col = {"timestamp": raw_col.timestamp,
                             "name": raw_col.name,
                             "ttl": raw_col.ttl,
@@ -216,8 +178,7 @@ class CQLClient(object):
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
-                cfname = selectRe.match(prep_query).group(1)
-                return self._unmarshal_result(cfname, result.rows)
+                return self._unmarshal_result(result.schema, result.rows)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:
