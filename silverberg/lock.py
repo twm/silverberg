@@ -26,8 +26,8 @@ from twisted.internet.defer import (succeed, fail)
 class UnableToAcquireLockError(Exception):
     def __init__(self, lock_table, lock_id):
         super(UnableToAcquireLockError, self).__init__(
-            "Unable to acquire lock {id} on {table}").format(id=lock_id,
-                                                             table=lock_table)
+            "Unable to acquire lock {id} on {table}".format(id=lock_id,
+                                                            table=lock_table))
 
 
 class BasicLock(object):
@@ -47,7 +47,7 @@ class BasicLock(object):
     def _verify_lock(self, count):
         # TODO: Parse response!
         if (count == 1):
-            return succeed(None)
+            return succeed(True)
         else:
             return self.release().addCallback(lambda _:
                                               fail(UnableToAcquireLockError(self._lock_table,
