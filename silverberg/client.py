@@ -111,21 +111,11 @@ class CQLClient(object):
             return val
 
         for raw_row in raw_rows:
-            cols = []
-            #as it turns out, you can have multiple cols with the same
-            #name, ergo, we're passing back an array instead of a hash
-            #keyed by key name
-            key = raw_row.key
+            row = {}
             for raw_col in raw_row.columns:
                 specific = schema.value_types[raw_col.name]
-                temp_col = {"timestamp": raw_col.timestamp,
-                            "name": raw_col.name,
-                            "ttl": raw_col.ttl,
-                            "value": _unmarshal_val(specific, raw_col.value)}
-                cols.append(temp_col)
-            rows.append(
-                {"key": key, "cols": cols}
-            )
+                row[raw_col.name] = _unmarshal_val(specific, raw_col.value)
+            rows.append(row)
         return rows
 
     def execute(self, query, args, consistency):
@@ -155,20 +145,14 @@ class CQLClient(object):
             d = client.execute("UPDATE :table SET 'fff' = :val WHERE "
             "KEY = :key",{"val":1234, "key": "fff", "table": "blah"})
 
-        :returns: either None, an int, or a sequence of rows, depending
+        :returns: A Deferred that fires with either None, an int, or an
+                  iterable of `{'column': value, ...}` dictionaries, depending
                   on the CQL query.  e.g. a UPDATE would return None,
                   whereas a SELECT would return an int or some rows
 
         Example output::
 
-            [
-             {"cols":
-              [
-                {"name": "fff", "timestamp": None, 'ttl': None,
-                 "value": 1222}],
-              "key": "blah"
-             }
-            ]
+            [{"fff": 1222}]
         """
         prep_query = prepare(query, args)
 
