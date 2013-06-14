@@ -131,10 +131,6 @@ class CQLClient(object):
         :param consistency: The consistency level
         :type consistency: ConsistencyLevel
 
-        :return: A Deferred that fires with an iterable of dictionaries, one
-            for each row where the keys in the dictionary are the names of
-            columns and the values the associated value in that column.
-
         In order to avoid unpleasant issues of CQL injection
         (Hey, just because there's no SQL doesn't mean that Little
         Bobby Tables won't mess things up for you like in XKCD #327)
@@ -149,7 +145,8 @@ class CQLClient(object):
             d = client.execute("UPDATE :table SET 'fff' = :val WHERE "
             "KEY = :key",{"val":1234, "key": "fff", "table": "blah"})
 
-        :returns: either None, an int, or a sequence of rows, depending
+        :returns: A Deferred that fires with either None, an int, or an
+                  iterable of `{'column': value, ...}` dictionaries, depending
                   on the CQL query.  e.g. a UPDATE would return None,
                   whereas a SELECT would return an int or some rows
 
