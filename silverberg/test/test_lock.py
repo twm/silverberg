@@ -18,7 +18,7 @@ import mock
 from twisted.internet import defer
 
 from silverberg.client import CQLClient
-from silverberg.lock import BasicLock, UnableToAcquireLockError
+from silverberg.lock import BasicLock, UnableToAcquireLockError, with_lock
 from silverberg.test.util import BaseTestCase
 
 
@@ -102,7 +102,6 @@ class BasicLockTest(BaseTestCase):
                       {'lockId': lock_uuid}, 2)]
 
         self.assertEqual(self.client.execute.call_args_list, expected)
-        #self.client.execute.assert_called_with(*expected)
 
     def test_release(self):
         lock_uuid = uuid.uuid4()
@@ -116,3 +115,77 @@ class BasicLockTest(BaseTestCase):
 
         self.assertFired(d)
         self.client.execute.assert_called_once_with(*expected)
+
+
+class WithLockTest(BaseTestCase):
+    """Test the lock context manager."""
+
+    def setUp(self):
+        pass
+        patcher = mock.patch('silverberg.lock.BasicLock',)
+        self.addCleanup(patcher.stop)
+        self.BasicLock = patcher.start()
+
+        self.lock = mock.create_autospec(BasicLock)
+
+        def _acquire():
+            return defer.succeed(None)
+        self.lock.acquire.side_effect = _acquire
+
+        def _release():
+            return defer.succeed(None)
+        self.lock.release.side_effect = _release
+
+        self.BasicLock.return_value = self.lock
+
+    def test_with_lock(self):
+        """
+        Acquire the lock, run the function, and release the lock.
+        """
+        lock_uuid = uuid.uuid4()
+
+        def _func():
+            return defer.succeed(None)
+
+        d = with_lock(None, lock_uuid, 'lock', _func)
+
+        self.assertFired(d)
+        self.lock.acquire.assert_called_once_with()
+        self.lock.release.assert_called_once_with()
+
+    def test_with_lock_not_acquired(self):
+        """
+        Raise an error if the lock isn't acquired.
+        """
+        def _side_effect():
+            return defer.fail(UnableToAcquireLockError('', ''))
+        self.lock.acquire.side_effect = _side_effect
+
+        lock_uuid = uuid.uuid4()
+
+        def _func():
+            return defer.succeed(None)
+
+        d = with_lock(None, lock_uuid, 'lock', _func)
+
+        def _assert_failure(failure):
+            self.assertEqual(type(failure.value), UnableToAcquireLockError)
+        d.addErrback(_assert_failure)
+
+    def test_with_lock_func_errors(self):
+        """
+        If the func raises an error, the lock is released and the error passsed on.
+        """
+        lock_uuid = uuid.uuid4()
+
+        def _func():
+            return defer.fail(Exception('The samoflange is broken.'))
+
+        d = with_lock(None, lock_uuid, 'lock', _func)
+
+        def _assert_failure(failure):
+            self.assertEqual(failure.getErrorMessage(), 'The samoflange is broken.')
+
+            self.lock.acquire.assert_called_once_with()
+            self.lock.release.assert_called_once_with()
+        d.addErrback(_assert_failure)

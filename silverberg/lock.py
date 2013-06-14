@@ -19,8 +19,9 @@ Locking recipe for Cassandra
 """
 
 import uuid
+
 from silverberg.client import ConsistencyLevel
-from twisted.internet.defer import (succeed, fail)
+from twisted.internet.defer import fail, maybeDeferred, succeed
 
 
 class UnableToAcquireLockError(Exception):
@@ -91,3 +92,20 @@ class BasicLock(object):
         d.addCallback(self._read_lock)
         d.addCallback(self._verify_lock)
         return d
+
+
+def with_lock(client, lock_id, table, func, *args, **kwargs):
+    """A context manager for performing operations requiring a lock."""
+    lock = BasicLock(client, lock_id, table)
+
+    d = lock.acquire()
+
+    def release_lock(result):
+        deferred = lock.release()
+        return deferred.addCallback(lambda x: result)
+
+    def lock_acquired(lock):
+        return maybeDeferred(func, *args, **kwargs).addBoth(release_lock)
+
+    d.addCallback(lock_acquired)
+    return d
