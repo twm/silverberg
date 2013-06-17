@@ -21,7 +21,7 @@ Locking recipe for Cassandra
 import uuid
 
 from silverberg.client import ConsistencyLevel
-from twisted.internet.defer import fail, maybeDeferred, succeed
+from twisted.internet import defer  # import fail, maybeDeferred, succeed
 
 
 class UnableToAcquireLockError(Exception):
@@ -56,11 +56,10 @@ class BasicLock(object):
     def _verify_lock(self, count):
         # TODO: Parse response!
         if (count == 1):
-            return succeed(True)
+            return defer.succeed(True)
         else:
-            return self.release().addCallback(lambda _:
-                                              fail(UnableToAcquireLockError(self._lock_table,
-                                                                            self._lock_id)))
+            return self.release().addCallback(lambda _: defer.fail(
+                UnableToAcquireLockError(self._lock_table, self._lock_id)))
 
     def _write_lock(self):
         query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL {ttl};'
@@ -88,10 +87,17 @@ class BasicLock(object):
         return d
 
     def acquire(self):
+        deferred = defer.Deferred()
+
+        def _fire_deferred(*args, **kwargs):
+            deferred.callback(*args, **kwargs)
+
         d = self._write_lock()
         d.addCallback(self._read_lock)
         d.addCallback(self._verify_lock)
-        return d
+        d.addCallback(_fire_deferred)
+
+        return deferred
 
 
 def with_lock(client, lock_id, table, func, *args, **kwargs):
@@ -105,7 +111,7 @@ def with_lock(client, lock_id, table, func, *args, **kwargs):
         return deferred.addCallback(lambda x: result)
 
     def lock_acquired(lock):
-        return maybeDeferred(func, *args, **kwargs).addBoth(release_lock)
+        return defer.maybeDeferred(func, *args, **kwargs).addBoth(release_lock)
 
     d.addCallback(lock_acquired)
     return d
