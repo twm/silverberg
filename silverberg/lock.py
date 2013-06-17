@@ -20,8 +20,10 @@ Locking recipe for Cassandra
 
 import uuid
 
-from silverberg.client import ConsistencyLevel
 from twisted.internet import defer  # import fail, maybeDeferred, succeed
+
+from silverberg.client import ConsistencyLevel
+from silverberg.cassandra.ttypes import InvalidRequestException
 
 
 class UnableToAcquireLockError(Exception):
@@ -70,8 +72,16 @@ class BasicLock(object):
     @staticmethod
     def ensure_schema(client, table_name):
         query = 'CREATE TABLE {cf} ("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'
+
+        def _errback(failure):
+            if failure.type is InvalidRequestException:
+                # The table already exists
+                return defer.succeed(None)
+            else:
+                return defer.fail(failure)
+
         return client.execute(query.format(cf=table_name),
-                              {}, ConsistencyLevel.QUORUM)
+                              {}, ConsistencyLevel.QUORUM).addErrback(_errback)
 
     @staticmethod
     def drop_schema(client, table_name):
