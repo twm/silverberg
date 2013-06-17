@@ -70,7 +70,9 @@ class BasicLock(object):
 
     @staticmethod
     def ensure_schema(client, table_name):
-        query = 'CREATE TABLE {cf} ("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'
+        query = ''.join([
+            'CREATE TABLE {cf}',
+            '("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'])
 
         def _errback(failure):
             if failure.type is InvalidRequestException:
