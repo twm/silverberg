@@ -45,11 +45,11 @@ class BasicLock(object):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
-        self._lock_claimId = uuid.uuid4()
+        self._lock_claimId = uuid.uuid1()
         self._ttl = ttl
 
     def _read_lock(self, ignored):
-        query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId;'
+        query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
         return self._client.execute(query.format(cf=self._lock_table),
                                     {'lockId': self._lock_id}, ConsistencyLevel.QUORUM)
 
@@ -69,7 +69,7 @@ class BasicLock(object):
 
     @staticmethod
     def ensure_schema(client, table_name):
-        query = 'CREATE TABLE {cf} ("lockId" ascii, "claimId" ascii, PRIMARY KEY("lockId", "claimId"));'
+        query = 'CREATE TABLE {cf} ("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'
         return client.execute(query.format(cf=table_name),
                               {}, ConsistencyLevel.QUORUM)
 
