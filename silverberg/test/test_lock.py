@@ -34,9 +34,9 @@ class BasicLockTest(BaseTestCase):
         self.client.execute.side_effect = _side_effect
 
     def test__read_lock(self):
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
         expected = [
-            'SELECT COUNT(*) FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
+            'SELECT * FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
             {'lockId': lock_uuid}, 2]
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
@@ -46,19 +46,19 @@ class BasicLockTest(BaseTestCase):
         self.client.execute.assert_called_once_with(*expected)
 
     def test__verify_lock(self):
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
-        d = lock._verify_lock(1)
+        d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': lock._lock_claimId}])
 
         result = self.assertFired(d)
         self.assertEqual(result, True)
 
     def test__verify_lock_release(self):
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         def _side_effect(*args, **kwargs):
-            return defer.fail(UnableToAcquireLockError(self.table_name, lock_uuid))
+            return defer.succeed(None)
         self.client.execute.side_effect = _side_effect
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
@@ -66,7 +66,7 @@ class BasicLockTest(BaseTestCase):
             'DELETE FROM lock WHERE "lockId"=:lockId AND "claimId"=:claimId;',
             {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2]
 
-        d = lock._verify_lock(2)
+        d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': ''}])
 
         def _assert_failure(failure):
             self.client.execute.assert_called_once_with(*expected)
@@ -74,7 +74,7 @@ class BasicLockTest(BaseTestCase):
         d.addErrback(_assert_failure)
 
     def test__write_lock(self):
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid, 1000)
         expected = [
@@ -88,23 +88,28 @@ class BasicLockTest(BaseTestCase):
 
     def test_acquire(self):
         """Lock acquire should write and then read back its write."""
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
+
+        def _side_effect(*args, **kwargs):
+            return defer.succeed([{'lockId': lock._lock_id,
+                                   'claimId': lock._lock_claimId}])
+        self.client.execute.side_effect = _side_effect
 
         d = lock.acquire()
         self.assertEqual(self.assertFired(d), True)
 
         expected = [
             mock.call('INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;',
-                      {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2),
-            mock.call('SELECT COUNT(*) FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
-                      {'lockId': lock_uuid}, 2)]
+                      {'lockId': lock._lock_id, 'claimId': lock._lock_claimId}, 2),
+            mock.call('SELECT * FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
+                      {'lockId': lock._lock_id}, 2)]
 
         self.assertEqual(self.client.execute.call_args_list, expected)
 
     def test_release(self):
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
         expected = [
@@ -142,7 +147,7 @@ class WithLockTest(BaseTestCase):
         """
         Acquire the lock, run the function, and release the lock.
         """
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         def _func():
             return defer.succeed(None)
@@ -161,7 +166,7 @@ class WithLockTest(BaseTestCase):
             return defer.fail(UnableToAcquireLockError('', ''))
         self.lock.acquire.side_effect = _side_effect
 
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         def _func():
             return defer.succeed(None)
@@ -176,7 +181,7 @@ class WithLockTest(BaseTestCase):
         """
         If the func raises an error, the lock is released and the error passsed on.
         """
-        lock_uuid = uuid.uuid4()
+        lock_uuid = uuid.uuid1()
 
         def _func():
             return defer.fail(Exception('The samoflange is broken.'))

@@ -51,13 +51,12 @@ class BasicLock(object):
         self._ttl = ttl
 
     def _read_lock(self, ignored):
-        query = 'SELECT COUNT(*) FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
+        query = 'SELECT * FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
         return self._client.execute(query.format(cf=self._lock_table),
                                     {'lockId': self._lock_id}, ConsistencyLevel.QUORUM)
 
-    def _verify_lock(self, count):
-        # TODO: Parse response!
-        if (count == 1):
+    def _verify_lock(self, response):
+        if response[0]['claimId'] == self._lock_claimId:
             return defer.succeed(True)
         else:
             return self.release().addCallback(lambda _: defer.fail(
