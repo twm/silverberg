@@ -108,7 +108,7 @@ class BasicLockTest(BaseTestCase):
         self.assertEqual(self.client.execute.call_args_list, expected)
 
     def test_acquire_retry(self):
-        """Lock acquire should write and then read back its write."""
+        """BasicLock.acquire will retry max_retry times."""
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
@@ -131,9 +131,10 @@ class BasicLockTest(BaseTestCase):
 
         clock.advance(20)
         self.assertEqual(self.assertFired(d), True)
+        self.assertEqual(self.client.execute.call_count, 4)
 
     def test_acquire_retry_never_acquired(self):
-        """Lock acquire should write and then read back its write."""
+        """BasicLock.acquire will retry max_retry times and then give up."""
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
@@ -157,6 +158,7 @@ class BasicLockTest(BaseTestCase):
         clock.advance(20)
         result = self.failureResultOf(d)
         self.assertTrue(result.check(BusyLockError))
+        self.assertEqual(self.client.execute.call_count, 4)
 
     def test_acquire_retry_not_lock_error(self):
         """Lock acquire should write and then read back its write."""
