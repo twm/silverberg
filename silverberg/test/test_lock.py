@@ -113,7 +113,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
-        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+        lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1, reactor=clock)
 
         responses = [
             defer.fail(BusyLockError('', '')),
@@ -128,7 +128,7 @@ class BasicLockTest(BaseTestCase):
             return defer.succeed([])
         self.client.execute.side_effect = _side_effect
 
-        d = lock.acquire(max_retry=1)
+        d = lock.acquire()
 
         clock.advance(20)
         self.assertEqual(self.assertFired(d), True)
@@ -138,7 +138,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
-        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+        lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1, reactor=clock)
 
         responses = [
             defer.fail(BusyLockError('', '')),
@@ -153,7 +153,7 @@ class BasicLockTest(BaseTestCase):
             return defer.succeed([])
         self.client.execute.side_effect = _side_effect
 
-        d = lock.acquire(max_retry=1)
+        d = lock.acquire()
 
         clock.advance(20)
         result = self.failureResultOf(d)
@@ -164,7 +164,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
-        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+        lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1, reactor=clock)
 
         responses = [
             defer.fail(NameError('Keep your foot off the blasted samoflange.')),
@@ -178,7 +178,7 @@ class BasicLockTest(BaseTestCase):
             return defer.succeed([])
         self.client.execute.side_effect = _side_effect
 
-        d = lock.acquire(max_retry=1)
+        d = lock.acquire()
 
         clock.advance(20)
         result = self.failureResultOf(d)
@@ -227,10 +227,11 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.succeed(None)
 
-        d = with_lock(None, 'lock', lock_uuid, _func)
+        lock = self.BasicLock(None, 'lock', lock_uuid)
+        d = with_lock(lock, _func)
 
         self.assertFired(d)
-        self.lock.acquire.assert_called_once_with(max_retry=5, timeout=10)
+        self.lock.acquire.assert_called_once_with()
         self.lock.release.assert_called_once_with()
 
     def test_with_lock_not_acquired(self):
@@ -246,7 +247,8 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.succeed(None)
 
-        d = with_lock(None, 'lock', lock_uuid, _func)
+        lock = self.BasicLock(None, 'lock', lock_uuid)
+        d = with_lock(lock, _func)
 
         def _assert_failure(failure):
             self.assertEqual(type(failure.value), BusyLockError)
@@ -261,11 +263,12 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.fail(Exception('The samoflange is broken.'))
 
-        d = with_lock(None, 'lock', lock_uuid, _func)
+        lock = self.BasicLock(None, 'lock', lock_uuid)
+        d = with_lock(lock, _func)
 
         def _assert_failure(failure):
             self.assertEqual(failure.getErrorMessage(), 'The samoflange is broken.')
 
-            self.lock.acquire.assert_called_once_with(max_retry=5, timeout=10)
+            self.lock.acquire.assert_called_once_with()
             self.lock.release.assert_called_once_with()
         d.addErrback(_assert_failure)

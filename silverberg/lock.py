@@ -54,16 +54,25 @@ class BasicLock(object):
     :param ttl: A TTL for the lock.
     :type ttl: int
 
+    :param max_retry: A number of times to retry acquisition of the lock.
+    :type max_retry: int
+
+    :param retry_wait: A number of seconds to wait before retrying acquisition.
+    :type retry_wait: int
+
     :param reactor: A twisted clock.
     :type reactor: twisted.internet.interfaces.IReactorTime
     """
 
-    def __init__(self, client, lock_table, lock_id, ttl=300, reactor=None):
+    def __init__(self, client, lock_table, lock_id, ttl=300, max_retry=0,
+                 retry_wait=10, reactor=None):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
         self._claim_id = uuid.uuid1()
         self._ttl = ttl
+        self._max_retry = max_retry
+        self._retry_wait = retry_wait
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
@@ -132,18 +141,12 @@ class BasicLock(object):
                                  ConsistencyLevel.QUORUM)
         return d
 
-    def acquire(self, max_retry=5, timeout=10):
+    def acquire(self):
         """
         Acquire the lock.
 
         If the lock can't be acquired immediately, retry a specified number of
         times, with a specified wait time.
-
-        :param max_retry: A number of times to retry acquisition of the lock.
-        :type max_retry: int
-
-        :param timeout: A wait timeout before retrying, in seconds.
-        :type timeout: int
         """
         retries = [0]
         deferred = defer.Deferred()
@@ -158,8 +161,8 @@ class BasicLock(object):
         def lock_not_acquired(failure):
             failure.trap(BusyLockError)
             retries[0] += 1
-            if retries[0] <= max_retry:
-                return task.deferLater(self._reactor, timeout, acquire_lock)
+            if retries[0] <= self._max_retry:
+                return task.deferLater(self._reactor, self._retry_wait, acquire_lock)
             else:
                 return failure
 
@@ -169,31 +172,16 @@ class BasicLock(object):
         return deferred
 
 
-def with_lock(client, lock_table, lock_id, func, ttl=300, max_retry=5, timeout=10,
-              *args, **kwargs):
+def with_lock(lock, func, *args, **kwargs):
     """A context manager for performing operations requiring a lock.
 
-    :param client: A Cassandra CQL client
-    :type client: silverberg.client.CQLClient
+    :param lock: A BasicLock instance
+    :type lock: silverberg.lock.BasicLock
 
-    :param lock_table: A table/columnfamily table name for holding locks.
-    :type lock_table: str
-
-    :param lock_id: A unique identifier for the lock.
-    :type lock_id: str
-
-    :param ttl: A TTL for the lock.
-    :type ttl: int
-
-    :param max_retry: A number of times to retry acquisition of the lock.
-    :type max_retry: int
-
-    :param timeout: A wait timeout before retrying, in seconds.
-    :type timeout: int
+    :param func: A callable to execute while the lock is held.
+    :type func: function
     """
-    lock = BasicLock(client, lock_table, lock_id, ttl)
-
-    d = lock.acquire(max_retry=max_retry, timeout=timeout)
+    d = lock.acquire()
 
     def release_lock(result):
         deferred = lock.release()
