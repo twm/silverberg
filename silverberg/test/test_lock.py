@@ -68,10 +68,9 @@ class BasicLockTest(BaseTestCase):
 
         d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': ''}])
 
-        def _assert_failure(failure):
-            self.client.execute.assert_called_once_with(*expected)
-            self.assertEqual(type(failure.value), BusyLockError)
-        d.addErrback(_assert_failure)
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(BusyLockError))
+        self.client.execute.assert_called_once_with(*expected)
 
     def test__write_lock(self):
         lock_uuid = uuid.uuid1()
@@ -250,9 +249,8 @@ class WithLockTest(BaseTestCase):
         lock = self.BasicLock(None, 'lock', lock_uuid)
         d = with_lock(lock, _func)
 
-        def _assert_failure(failure):
-            self.assertEqual(type(failure.value), BusyLockError)
-        d.addErrback(_assert_failure)
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(BusyLockError))
 
     def test_with_lock_func_errors(self):
         """
@@ -261,14 +259,14 @@ class WithLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         def _func():
-            return defer.fail(Exception('The samoflange is broken.'))
+            return defer.fail(TypeError('The samoflange is broken.'))
 
         lock = self.BasicLock(None, 'lock', lock_uuid)
         d = with_lock(lock, _func)
 
-        def _assert_failure(failure):
-            self.assertEqual(failure.getErrorMessage(), 'The samoflange is broken.')
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(TypeError))
+        self.assertEqual(result.getErrorMessage(), 'The samoflange is broken.')
 
-            self.lock.acquire.assert_called_once_with()
-            self.lock.release.assert_called_once_with()
-        d.addErrback(_assert_failure)
+        self.lock.acquire.assert_called_once_with()
+        self.lock.release.assert_called_once_with()
