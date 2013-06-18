@@ -102,11 +102,7 @@ class BasicLock(object):
             '("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'])
 
         def _errback(failure):
-            if failure.type is InvalidRequestException:
-                # The table already exists
-                return defer.succeed(None)
-            else:
-                return defer.fail(failure)
+            failure.trap(InvalidRequestException)
 
         return client.execute(query.format(cf=table_name),
                               {}, ConsistencyLevel.QUORUM).addErrback(_errback)
