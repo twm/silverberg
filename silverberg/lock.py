@@ -151,15 +151,15 @@ class BasicLock(object):
         def acquire_lock():
             d = self._write_lock()
             d.addCallback(self._read_lock)
-            d.addCallbacks(self._verify_lock)
+            d.addCallback(self._verify_lock)
+            d.addErrback(lock_not_acquired)
             return d
 
         def lock_not_acquired(failure):
             failure.trap(BusyLockError)
             retries[0] += 1
             if retries[0] <= max_retry:
-                d = task.deferLater(self._reactor, timeout, acquire_lock)
-                return d.addErrback(lock_not_acquired)
+                return task.deferLater(self._reactor, timeout, acquire_lock)
             else:
                 return failure
 
