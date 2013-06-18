@@ -101,11 +101,11 @@ class BasicLock(object):
             'CREATE TABLE {cf}',
             '("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'])
 
-        def _errback(failure):
+        def errback(failure):
             failure.trap(InvalidRequestException)
 
         return client.execute(query.format(cf=table_name),
-                              {}, ConsistencyLevel.QUORUM).addErrback(_errback)
+                              {}, ConsistencyLevel.QUORUM).addErrback(errback)
 
     @staticmethod
     def drop_schema(client, table_name):
@@ -148,23 +148,23 @@ class BasicLock(object):
         retries = [0]
         deferred = defer.Deferred()
 
-        def _acquire_lock():
+        def acquire_lock():
             d = self._write_lock()
             d.addCallback(self._read_lock)
-            d.addCallback(self._verify_lock)
+            d.addCallbacks(self._verify_lock)
             return d
 
-        def _lock_not_acquired(failure):
+        def lock_not_acquired(failure):
             failure.trap(BusyLockError)
             retries[0] += 1
             if retries[0] <= max_retry:
-                d = task.deferLater(self._reactor, timeout, _acquire_lock)
-                return d.addErrback(_lock_not_acquired)
+                d = task.deferLater(self._reactor, timeout, acquire_lock)
+                return d.addErrback(lock_not_acquired)
             else:
                 return failure
 
-        d = _acquire_lock()
-        d.addErrback(_lock_not_acquired)
+        d = acquire_lock()
+        d.addErrback(lock_not_acquired)
         d.chainDeferred(deferred)
 
         return deferred
