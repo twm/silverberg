@@ -15,7 +15,7 @@
 import uuid
 
 import mock
-from twisted.internet import defer
+from twisted.internet import defer, task
 
 from silverberg.client import CQLClient
 from silverberg.lock import BasicLock, UnableToAcquireLockError, with_lock
@@ -107,6 +107,82 @@ class BasicLockTest(BaseTestCase):
                       {'lockId': lock._lock_id}, 2)]
 
         self.assertEqual(self.client.execute.call_args_list, expected)
+
+    def test_acquire_retry(self):
+        """Lock acquire should write and then read back its write."""
+        lock_uuid = uuid.uuid1()
+
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+
+        responses = [
+            defer.fail(UnableToAcquireLockError('', '')),
+            defer.succeed(True)
+        ]
+
+        def _new_verify_lock(response):
+            return responses.pop(0)
+        lock._verify_lock = _new_verify_lock
+
+        def _side_effect(*args, **kwargs):
+            return defer.succeed([])
+        self.client.execute.side_effect = _side_effect
+
+        d = lock.acquire(max_retry=1)
+
+        clock.advance(20)
+        self.assertEqual(self.assertFired(d), True)
+
+    def test_acquire_retry_never_acquired(self):
+        """Lock acquire should write and then read back its write."""
+        lock_uuid = uuid.uuid1()
+
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+
+        responses = [
+            defer.fail(UnableToAcquireLockError('', '')),
+            defer.fail(UnableToAcquireLockError('', ''))
+        ]
+
+        def _new_verify_lock(response):
+            return responses.pop(0)
+        lock._verify_lock = _new_verify_lock
+
+        def _side_effect(*args, **kwargs):
+            return defer.succeed([])
+        self.client.execute.side_effect = _side_effect
+
+        d = lock.acquire(max_retry=1)
+
+        clock.advance(20)
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(UnableToAcquireLockError))
+
+    def test_acquire_retry_not_lock_error(self):
+        """Lock acquire should write and then read back its write."""
+        lock_uuid = uuid.uuid1()
+
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=clock)
+
+        responses = [
+            defer.fail(NameError('Keep your foot off the blasted samoflange.')),
+        ]
+
+        def _new_verify_lock(response):
+            return responses.pop(0)
+        lock._verify_lock = _new_verify_lock
+
+        def _side_effect(*args, **kwargs):
+            return defer.succeed([])
+        self.client.execute.side_effect = _side_effect
+
+        d = lock.acquire(max_retry=1)
+
+        clock.advance(20)
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(NameError))
 
     def test_release(self):
         lock_uuid = uuid.uuid1()

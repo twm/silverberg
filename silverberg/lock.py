@@ -20,7 +20,7 @@ Locking recipe for Cassandra
 
 import uuid
 
-from twisted.internet import defer  # import fail, maybeDeferred, succeed
+from twisted.internet import defer, task
 
 from silverberg.client import ConsistencyLevel
 from silverberg.cassandra.ttypes import InvalidRequestException
@@ -43,12 +43,15 @@ class BasicLock(object):
     remove the lock is made. Otherwise, the lock is acquired.
     """
 
-    def __init__(self, client, lock_table, lock_id, ttl=300):
+    def __init__(self, client, lock_table, lock_id, ttl=300, reactor=None):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
         self._lock_claimId = uuid.uuid1()
         self._ttl = ttl
+        if reactor is None:
+            from twisted.internet import reactor
+        self._reactor = reactor
 
     def _read_lock(self, ignored):
         query = 'SELECT * FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
@@ -97,16 +100,28 @@ class BasicLock(object):
                                  ConsistencyLevel.QUORUM)
         return d
 
-    def acquire(self):
+    def acquire(self, max_retry=5, timeout=10):
+        retries = [0]
         deferred = defer.Deferred()
 
-        def _fire_deferred(*args, **kwargs):
-            deferred.callback(*args, **kwargs)
+        def _acquire_lock():
+            d = self._write_lock()
+            d.addCallback(self._read_lock)
+            d.addCallback(self._verify_lock)
+            return d
 
-        d = self._write_lock()
-        d.addCallback(self._read_lock)
-        d.addCallback(self._verify_lock)
-        d.addCallback(_fire_deferred)
+        def _lock_not_acquired(failure):
+            failure.trap(UnableToAcquireLockError)
+            retries[0] += 1
+            if retries[0] <= max_retry:
+                d = task.deferLater(self._reactor, timeout, _acquire_lock)
+                return d.addErrback(_lock_not_acquired)
+            else:
+                return failure
+
+        d = _acquire_lock()
+        d.addErrback(_lock_not_acquired)
+        d.chainDeferred(deferred)
 
         return deferred
 
