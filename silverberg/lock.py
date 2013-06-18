@@ -149,7 +149,6 @@ class BasicLock(object):
         times, with a specified wait time.
         """
         retries = [0]
-        deferred = defer.Deferred()
 
         def acquire_lock():
             d = self._write_lock()
@@ -166,10 +165,7 @@ class BasicLock(object):
             else:
                 return failure
 
-        d = acquire_lock()
-        d.chainDeferred(deferred)
-
-        return deferred
+        return acquire_lock()
 
 
 def with_lock(lock, func, *args, **kwargs):
