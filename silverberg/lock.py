@@ -41,6 +41,21 @@ class BasicLock(object):
     Cassandra database table, then the table is read for the given lock. If the
     count of the result is not 1, the lock was not acquired, so a write to
     remove the lock is made. Otherwise, the lock is acquired.
+
+    :param client: A Cassandra CQL client
+    :type client: silverberg.client.CQLClient
+
+    :param lock_table: A table/columnfamily table name for holding locks.
+    :type lock_table: str
+
+    :param lock_id: A unique identifier for the lock.
+    :type lock_id: str
+
+    :param ttl: A TTL for the lock.
+    :type ttl: int
+
+    :param reactor: A twisted clock.
+    :type reactor: twisted.internet.interfaces.IReactorTime
     """
 
     def __init__(self, client, lock_table, lock_id, ttl=300, reactor=None):
@@ -73,6 +88,15 @@ class BasicLock(object):
 
     @staticmethod
     def ensure_schema(client, table_name):
+        """
+        Create the table/columnfamily if it doesn't already exist.
+
+        :param client: A Cassandra CQL client
+        :type client: silverberg.client.CQLClient
+
+        :param lock_table: A table/columnfamily table name for holding locks.
+        :type lock_table: str
+        """
         query = ''.join([
             'CREATE TABLE {cf}',
             '("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'])
@@ -89,11 +113,23 @@ class BasicLock(object):
 
     @staticmethod
     def drop_schema(client, table_name):
+        """
+        Delete the table/columnfamily.
+
+        :param client: A Cassandra CQL client
+        :type client: silverberg.client.CQLClient
+
+        :param lock_table: A table/columnfamily table name for holding locks.
+        :type lock_table: str
+        """
         query = 'DROP TABLE {cf}'
         return client.execute(query.format(cf=table_name),
                               {}, ConsistencyLevel.QUORUM)
 
     def release(self):
+        """
+        Release the lock.
+        """
         query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "claimId"=:claimId;'
         d = self._client.execute(query.format(cf=self._lock_table),
                                  {'lockId': self._lock_id, 'claimId': self._lock_claimId},
@@ -101,6 +137,18 @@ class BasicLock(object):
         return d
 
     def acquire(self, max_retry=5, timeout=10):
+        """
+        Acquire the lock.
+
+        If the lock can't be acquired immediately, retry a specified number of
+        times, with a specified wait time.
+
+        :param max_retry: A number of times to retry acquisition of the lock.
+        :type max_retry: int
+
+        :param timeout: A wait timeout before retrying, in seconds.
+        :type timeout: int
+        """
         retries = [0]
         deferred = defer.Deferred()
 
@@ -126,11 +174,31 @@ class BasicLock(object):
         return deferred
 
 
-def with_lock(client, lock_id, table, func, *args, **kwargs):
-    """A context manager for performing operations requiring a lock."""
-    lock = BasicLock(client, lock_id, table)
+def with_lock(client, lock_table, lock_id, func, ttl=300, max_retry=5, timeout=10,
+              *args, **kwargs):
+    """A context manager for performing operations requiring a lock.
 
-    d = lock.acquire()
+    :param client: A Cassandra CQL client
+    :type client: silverberg.client.CQLClient
+
+    :param lock_table: A table/columnfamily table name for holding locks.
+    :type lock_table: str
+
+    :param lock_id: A unique identifier for the lock.
+    :type lock_id: str
+
+    :param ttl: A TTL for the lock.
+    :type ttl: int
+
+    :param max_retry: A number of times to retry acquisition of the lock.
+    :type max_retry: int
+
+    :param timeout: A wait timeout before retrying, in seconds.
+    :type timeout: int
+    """
+    lock = BasicLock(client, lock_table, lock_id, ttl)
+
+    d = lock.acquire(max_retry=max_retry, timeout=timeout)
 
     def release_lock(result):
         deferred = lock.release()

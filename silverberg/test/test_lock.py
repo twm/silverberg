@@ -208,7 +208,7 @@ class WithLockTest(BaseTestCase):
 
         self.lock = mock.create_autospec(BasicLock)
 
-        def _acquire():
+        def _acquire(*args, **kwargs):
             return defer.succeed(None)
         self.lock.acquire.side_effect = _acquire
 
@@ -227,17 +227,17 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.succeed(None)
 
-        d = with_lock(None, lock_uuid, 'lock', _func)
+        d = with_lock(None, 'lock', lock_uuid, _func)
 
         self.assertFired(d)
-        self.lock.acquire.assert_called_once_with()
+        self.lock.acquire.assert_called_once_with(max_retry=5, timeout=10)
         self.lock.release.assert_called_once_with()
 
     def test_with_lock_not_acquired(self):
         """
         Raise an error if the lock isn't acquired.
         """
-        def _side_effect():
+        def _side_effect(*args, **kwargs):
             return defer.fail(UnableToAcquireLockError('', ''))
         self.lock.acquire.side_effect = _side_effect
 
@@ -246,7 +246,7 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.succeed(None)
 
-        d = with_lock(None, lock_uuid, 'lock', _func)
+        d = with_lock(None, 'lock', lock_uuid, _func)
 
         def _assert_failure(failure):
             self.assertEqual(type(failure.value), UnableToAcquireLockError)
@@ -261,11 +261,11 @@ class WithLockTest(BaseTestCase):
         def _func():
             return defer.fail(Exception('The samoflange is broken.'))
 
-        d = with_lock(None, lock_uuid, 'lock', _func)
+        d = with_lock(None, 'lock', lock_uuid, _func)
 
         def _assert_failure(failure):
             self.assertEqual(failure.getErrorMessage(), 'The samoflange is broken.')
 
-            self.lock.acquire.assert_called_once_with()
+            self.lock.acquire.assert_called_once_with(max_retry=5, timeout=10)
             self.lock.release.assert_called_once_with()
         d.addErrback(_assert_failure)
