@@ -49,7 +49,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         lock = BasicLock(self.client, self.table_name, lock_uuid)
-        d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': lock._lock_claimId}])
+        d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': lock._claim_id}])
 
         result = self.assertFired(d)
         self.assertEqual(result, True)
@@ -64,7 +64,7 @@ class BasicLockTest(BaseTestCase):
         lock = BasicLock(self.client, self.table_name, lock_uuid)
         expected = [
             'DELETE FROM lock WHERE "lockId"=:lockId AND "claimId"=:claimId;',
-            {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2]
+            {'lockId': lock_uuid, 'claimId': lock._claim_id}, 2]
 
         d = lock._verify_lock([{'lockId': lock._lock_id, 'claimId': ''}])
 
@@ -79,7 +79,7 @@ class BasicLockTest(BaseTestCase):
         lock = BasicLock(self.client, self.table_name, lock_uuid, 1000)
         expected = [
             'INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 1000;',
-            {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2]
+            {'lockId': lock_uuid, 'claimId': lock._claim_id}, 2]
 
         d = lock._write_lock()
 
@@ -94,7 +94,7 @@ class BasicLockTest(BaseTestCase):
 
         def _side_effect(*args, **kwargs):
             return defer.succeed([{'lockId': lock._lock_id,
-                                   'claimId': lock._lock_claimId}])
+                                   'claimId': lock._claim_id}])
         self.client.execute.side_effect = _side_effect
 
         d = lock.acquire()
@@ -102,7 +102,7 @@ class BasicLockTest(BaseTestCase):
 
         expected = [
             mock.call('INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;',
-                      {'lockId': lock._lock_id, 'claimId': lock._lock_claimId}, 2),
+                      {'lockId': lock._lock_id, 'claimId': lock._claim_id}, 2),
             mock.call('SELECT * FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
                       {'lockId': lock._lock_id}, 2)]
 
@@ -190,7 +190,7 @@ class BasicLockTest(BaseTestCase):
         lock = BasicLock(self.client, self.table_name, lock_uuid)
         expected = [
             'DELETE FROM lock WHERE "lockId"=:lockId AND "claimId"=:claimId;',
-            {'lockId': lock_uuid, 'claimId': lock._lock_claimId}, 2]
+            {'lockId': lock_uuid, 'claimId': lock._claim_id}, 2]
 
         d = lock.release()
 

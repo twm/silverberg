@@ -62,7 +62,7 @@ class BasicLock(object):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
-        self._lock_claimId = uuid.uuid1()
+        self._claim_id = uuid.uuid1()
         self._ttl = ttl
         if reactor is None:
             from twisted.internet import reactor
@@ -74,7 +74,7 @@ class BasicLock(object):
                                     {'lockId': self._lock_id}, ConsistencyLevel.QUORUM)
 
     def _verify_lock(self, response):
-        if response[0]['claimId'] == self._lock_claimId:
+        if response[0]['claimId'] == self._claim_id:
             return defer.succeed(True)
         else:
             return self.release().addCallback(lambda _: defer.fail(
@@ -83,7 +83,7 @@ class BasicLock(object):
     def _write_lock(self):
         query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL {ttl};'
         return self._client.execute(query.format(cf=self._lock_table, ttl=self._ttl),
-                                    {'lockId': self._lock_id, 'claimId': self._lock_claimId},
+                                    {'lockId': self._lock_id, 'claimId': self._claim_id},
                                     ConsistencyLevel.QUORUM)
 
     @staticmethod
@@ -128,7 +128,7 @@ class BasicLock(object):
         """
         query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "claimId"=:claimId;'
         d = self._client.execute(query.format(cf=self._lock_table),
-                                 {'lockId': self._lock_id, 'claimId': self._lock_claimId},
+                                 {'lockId': self._lock_id, 'claimId': self._claim_id},
                                  ConsistencyLevel.QUORUM)
         return d
 
