@@ -126,7 +126,6 @@ class WithLockTest(BaseTestCase):
     """Test the lock context manager."""
 
     def setUp(self):
-        pass
         patcher = mock.patch('silverberg.lock.BasicLock',)
         self.addCleanup(patcher.stop)
         self.BasicLock = patcher.start()
