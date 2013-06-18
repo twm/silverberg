@@ -164,7 +164,6 @@ class BasicLock(object):
                 return failure
 
         d = acquire_lock()
-        d.addErrback(lock_not_acquired)
         d.chainDeferred(deferred)
 
         return deferred
