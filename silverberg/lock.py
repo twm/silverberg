@@ -38,9 +38,9 @@ class BasicLock(object):
 
     Based on the lock implementation from Netflix's astyanax, the lock recipe
     is a write, read, write operation. A record is written to the specified
-    Cassandra database table, then the table is read for the given lock. If the
-    count of the result is not 1, the lock was not acquired, so a write to
-    remove the lock is made. Otherwise, the lock is acquired.
+    Cassandra database table with a timeuuid, and then the table is read for
+    the given lock, ordered by timeuuid. If the first row is not ours, the
+    lock was not acquired, so a write to remove the lock is made.
 
     :param client: A Cassandra CQL client
     :type client: silverberg.client.CQLClient
