@@ -26,9 +26,9 @@ from silverberg.client import ConsistencyLevel
 from silverberg.cassandra.ttypes import InvalidRequestException
 
 
-class UnableToAcquireLockError(Exception):
+class BusyLockError(Exception):
     def __init__(self, lock_table, lock_id):
-        super(UnableToAcquireLockError, self).__init__(
+        super(BusyLockError, self).__init__(
             "Unable to acquire lock {id} on {table}".format(id=lock_id,
                                                             table=lock_table))
 
@@ -78,7 +78,7 @@ class BasicLock(object):
             return defer.succeed(True)
         else:
             return self.release().addCallback(lambda _: defer.fail(
-                UnableToAcquireLockError(self._lock_table, self._lock_id)))
+                BusyLockError(self._lock_table, self._lock_id)))
 
     def _write_lock(self):
         query = 'INSERT INTO {cf} ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL {ttl};'
@@ -155,7 +155,7 @@ class BasicLock(object):
             return d
 
         def _lock_not_acquired(failure):
-            failure.trap(UnableToAcquireLockError)
+            failure.trap(BusyLockError)
             retries[0] += 1
             if retries[0] <= max_retry:
                 d = task.deferLater(self._reactor, timeout, _acquire_lock)
