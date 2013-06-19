@@ -181,7 +181,6 @@ class BasicLockTest(BaseTestCase):
 
         d = lock.acquire()
 
-        clock.advance(20)
         result = self.failureResultOf(d)
         self.assertTrue(result.check(NameError))
 
