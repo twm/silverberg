@@ -107,7 +107,7 @@ class BasicLock(object):
         :type lock_table: str
         """
         query = ''.join([
-            'CREATE TABLE {cf}',
+            'CREATE TABLE {cf} ',
             '("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));'])
 
         def errback(failure):

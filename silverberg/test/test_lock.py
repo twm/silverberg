@@ -20,6 +20,7 @@ from twisted.internet import defer, task
 from silverberg.client import CQLClient
 from silverberg.lock import BasicLock, BusyLockError, with_lock
 from silverberg.test.util import BaseTestCase
+from silverberg.cassandra.ttypes import InvalidRequestException
 
 
 class BasicLockTest(BaseTestCase):
@@ -83,6 +84,38 @@ class BasicLockTest(BaseTestCase):
         d = lock._write_lock()
 
         self.assertEqual(self.assertFired(d), 1)
+        self.client.execute.assert_called_once_with(*expected)
+
+    def test_ensure_schema(self):
+        """BasicLock.ensure_schema deletes the table/columnfamily."""
+        expected = [
+            'CREATE TABLE lock ("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));',
+            {}, 2]
+
+        d = BasicLock.ensure_schema(self.client, 'lock')
+        self.assertFired(d)
+        self.client.execute.assert_called_once_with(*expected)
+
+    def test_ensure_schema_already_created(self):
+        """
+        BasicLock.ensure_schema doesn't explode on InvalidRequestException,
+        meaning the table already exists.
+        """
+        def _side_effect(*args, **kwargs):
+            return defer.fail(InvalidRequestException())
+        self.client.execute.side_effect = _side_effect
+
+        d = BasicLock.ensure_schema(self.client, 'lock')
+        self.assertFired(d)
+
+    def test_drop_schema(self):
+        """BasicLock.drop_schema deletes the table/columnfamily."""
+        expected = [
+            'DROP TABLE lock',
+            {}, 2]
+
+        d = BasicLock.drop_schema(self.client, 'lock')
+        self.assertFired(d)
         self.client.execute.assert_called_once_with(*expected)
 
     def test_acquire(self):
@@ -245,7 +278,10 @@ class WithLockTest(BaseTestCase):
 
         lock_uuid = uuid.uuid1()
 
+        called = [False]
+
         def _func():
+            called[0] = True
             return defer.succeed(None)
 
         lock = self.BasicLock(None, 'lock', lock_uuid)
@@ -253,6 +289,8 @@ class WithLockTest(BaseTestCase):
 
         result = self.failureResultOf(d)
         self.assertTrue(result.check(BusyLockError))
+        self.assertFalse(called[0])
+        self.assertEqual(self.lock.release.call_count, 0)
 
     def test_with_lock_func_errors(self):
         """
