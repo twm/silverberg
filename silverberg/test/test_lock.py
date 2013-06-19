@@ -87,13 +87,13 @@ class BasicLockTest(BaseTestCase):
         self.client.execute.assert_called_once_with(*expected)
 
     def test_ensure_schema(self):
-        """BasicLock.ensure_schema deletes the table/columnfamily."""
+        """BasicLock.ensure_schema creates the table/columnfamily."""
         expected = [
             'CREATE TABLE lock ("lockId" ascii, "claimId" timeuuid, PRIMARY KEY("lockId", "claimId"));',
             {}, 2]
 
         d = BasicLock.ensure_schema(self.client, 'lock')
-        self.assertFired(d)
+        self.successResultOf(d)
         self.client.execute.assert_called_once_with(*expected)
 
     def test_ensure_schema_already_created(self):
@@ -106,7 +106,7 @@ class BasicLockTest(BaseTestCase):
         self.client.execute.side_effect = _side_effect
 
         d = BasicLock.ensure_schema(self.client, 'lock')
-        self.assertFired(d)
+        self.successResultOf(d)
 
     def test_drop_schema(self):
         """BasicLock.drop_schema deletes the table/columnfamily."""
@@ -115,7 +115,7 @@ class BasicLockTest(BaseTestCase):
             {}, 2]
 
         d = BasicLock.drop_schema(self.client, 'lock')
-        self.assertFired(d)
+        self.successResultOf(d)
         self.client.execute.assert_called_once_with(*expected)
 
     def test_acquire(self):
