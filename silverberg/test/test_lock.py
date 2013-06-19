@@ -161,7 +161,7 @@ class BasicLockTest(BaseTestCase):
         self.assertEqual(self.client.execute.call_count, 4)
 
     def test_acquire_retry_not_lock_error(self):
-        """Lock acquire should write and then read back its write."""
+        """If an error occurs that is not lock related, it is propagated."""
         lock_uuid = uuid.uuid1()
 
         clock = task.Clock()
@@ -225,12 +225,13 @@ class WithLockTest(BaseTestCase):
         lock_uuid = uuid.uuid1()
 
         def _func():
-            return defer.succeed(None)
+            return defer.succeed('Success')
 
         lock = self.BasicLock(None, 'lock', lock_uuid)
         d = with_lock(lock, _func)
 
-        self.assertFired(d)
+        result = self.successResultOf(d)
+        self.assertEqual(result, 'Success')
         self.lock.acquire.assert_called_once_with()
         self.lock.release.assert_called_once_with()
 

@@ -169,7 +169,7 @@ class BasicLock(object):
 
 
 def with_lock(lock, func, *args, **kwargs):
-    """A context manager for performing operations requiring a lock.
+    """A 'context manager' for performing operations requiring a lock.
 
     :param lock: A BasicLock instance
     :type lock: silverberg.lock.BasicLock
