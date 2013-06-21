@@ -21,7 +21,7 @@ import re
 import struct
 from uuid import UUID
 from datetime import datetime
-import time
+import calendar
 
 import cql
 
@@ -58,9 +58,7 @@ def marshal(term):
     elif isinstance(term, str):
         return "'%s'" % __escape_quotes(term)
     elif isinstance(term, datetime):
-        # Warning: utctimetuple() returns without milliseconds which are lost but CASS
-        # stores with milliseconds so multiplying with 1000
-        return str(int(time.mktime(term.utctimetuple())) * 1000)
+        return str(int(calendar.timegm(term.utctimetuple()) * 1000 + term.microsecond / 1e3))
     else:
         return str(term)
 
@@ -86,7 +84,7 @@ def unmarshal_long(bytestr):
 
 def unmarshal_timestamp(bytestr):
     epoch = unmarshal_long(bytestr)
-    return datetime.utcfromtimestamp(epoch / 1000)
+    return datetime.utcfromtimestamp(epoch / 1000.0)
 
 
 def unmarshal_uuid(bytestr):
