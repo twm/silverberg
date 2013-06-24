@@ -20,6 +20,8 @@
 import re
 import struct
 from uuid import UUID
+from datetime import datetime
+import calendar
 
 import cql
 
@@ -35,6 +37,7 @@ LONG_TYPE = "org.apache.cassandra.db.marshal.LongType"
 UUID_TYPE = "org.apache.cassandra.db.marshal.UUIDType"
 LEXICAL_UUID_TYPE = "org.apache.cassandra.db.marshal.LexicalType"
 TIME_UUID_TYPE = "org.apache.cassandra.db.marshal.TimeUUIDType"
+TIMESTAMP_TYPE = "org.apache.cassandra.db.marshal.DateType"
 
 
 def prepare(query, params):
@@ -54,6 +57,10 @@ def marshal(term):
         return "'%s'" % __escape_quotes(term.encode('utf8'))
     elif isinstance(term, str):
         return "'%s'" % __escape_quotes(term)
+    elif isinstance(term, datetime):
+        # If the datetime is naive, then it is considered UTC time and stored. If it is
+        # timezone-aware, then its corresponding UTC time is stored
+        return str(int(calendar.timegm(term.utctimetuple()) * 1000 + term.microsecond / 1e3))
     else:
         return str(term)
 
@@ -77,6 +84,11 @@ def unmarshal_long(bytestr):
     return _long_packer.unpack(bytestr)[0]
 
 
+def unmarshal_timestamp(bytestr):
+    epoch = unmarshal_long(bytestr)
+    return datetime.utcfromtimestamp(epoch / 1000.0)
+
+
 def unmarshal_uuid(bytestr):
     return UUID(bytes=bytestr)
 
@@ -88,7 +100,8 @@ unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  LONG_TYPE:         unmarshal_long,
                  UUID_TYPE:         unmarshal_uuid,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
-                 TIME_UUID_TYPE:    unmarshal_uuid}
+                 TIME_UUID_TYPE:    unmarshal_uuid,
+                 TIMESTAMP_TYPE:    unmarshal_timestamp}
 
 
 def decode_bigint(term):
