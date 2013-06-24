@@ -36,12 +36,12 @@ class MarshallingUnmarshallingTests(TestCase):
         Datetime objects are marshalled in UTC time and unmarshalled as UTC
         """
         datetimes = [
-                     # Naive datetime is considered as UTC. Same is returned
-                     ('2012-10-20T04:15:34.345+00:00', '2012-10-20T04:15:34.345'),
-                     # TZ-aware datetime is stored and given as UTC (this tests for +4)
-                     ('2012-10-20T04:15:34.654+04:00', '2012-10-20T00:15:34.654'),
-                     # TZ-aware datetime is stored and given as UTC (this tests for -4)
-                     ('2012-10-20T05:15:34.985-04:00', '2012-10-20T09:15:34.985')]
+            # Naive datetime is considered as UTC. Same is returned
+            ('2012-10-20T04:15:34.345+00:00', '2012-10-20T04:15:34.345'),
+            # TZ-aware datetime is stored and given as UTC (this tests for +4)
+            ('2012-10-20T04:15:34.654+04:00', '2012-10-20T00:15:34.654'),
+            # TZ-aware datetime is stored and given as UTC (this tests for -4)
+            ('2012-10-20T05:15:34.985-04:00', '2012-10-20T09:15:34.985')]
         for timestr, expected_utc_str in datetimes:
             dt = iso8601.parse_date(timestr)
             marshalled = marshal(dt)
