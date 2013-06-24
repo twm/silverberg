@@ -20,32 +20,45 @@ Tests for marshal.py
 
 import iso8601
 import struct
+from datetime import datetime
 
 from twisted.trial.unittest import TestCase
 
 from silverberg.marshal import marshal, unmarshal_timestamp
 
 
-class MarshallingUnmarshallingTests(TestCase):
+class MarshallingUnmarshallingDatetime(TestCase):
     """
-    Test marshalling and unmarshalling of different types
+    Test marshalling and unmarshalling of different datetime
     """
 
-    def test_marshal_datetime(self):
+    def marshal_unmarshal_datetime(self, to_marshal):
         """
-        Datetime objects are marshalled in UTC time and unmarshalled as UTC
+        Marshal the datetime using ``marshal`` and unmarshal it using ``unmarshal``
         """
-        datetimes = [
-            # Naive datetime is considered as UTC. Same is returned
-            ('2012-10-20T04:15:34.345+00:00', '2012-10-20T04:15:34.345'),
-            # TZ-aware datetime is stored and given as UTC (this tests for +4)
-            ('2012-10-20T04:15:34.654+04:00', '2012-10-20T00:15:34.654'),
-            # TZ-aware datetime is stored and given as UTC (this tests for -4)
-            ('2012-10-20T05:15:34.985-04:00', '2012-10-20T09:15:34.985')]
-        for timestr, expected_utc_str in datetimes:
-            dt = iso8601.parse_date(timestr)
-            marshalled = marshal(dt)
-            epoch = int(marshalled)
-            epoch_bytes = struct.pack('>q', epoch)
-            expected_utc = iso8601.parse_date(expected_utc_str).replace(tzinfo=None)
-            self.assertEqual(unmarshal_timestamp(epoch_bytes), expected_utc)
+        marshalled_epoch = int(marshal(to_marshal))
+        marshalled_epoch_bytes = struct.pack('>q', marshalled_epoch)
+        return unmarshal_timestamp(marshalled_epoch_bytes)
+
+    def test_datetime_marshal_naive(self):
+        """
+        Naive datetime is considered as UTC and marshalled as such. Same is returned while unmarshalling
+        """
+        to_marshal = datetime(2012, 10, 20, 4, 15, 24, 345000)
+        self.assertEqual(self.marshal_unmarshal_datetime(to_marshal), to_marshal)
+
+    def test_datetime_marshal_positive_tz(self):
+        """
+        positive TZ-aware datetime is marshalled in UTC. The UTC time is unmarshalled
+        """
+        to_marshal = iso8601.parse_date('2012-10-20T04:15:34.654+04:00')
+        expected_utc = datetime(2012, 10, 20, 0, 15, 34, 654000)
+        self.assertEqual(self.marshal_unmarshal_datetime(to_marshal), expected_utc)
+
+    def test_datetime_marshal_negative_tz(self):
+        """
+        negative TZ-aware datetime is marshalled in UTC. The UTC time is unmarshalled
+        """
+        to_marshal = iso8601.parse_date('2012-10-20T04:15:34.154+04:00')
+        expected_utc = datetime(2012, 10, 20, 0, 15, 34, 154000)
+        self.assertEqual(self.marshal_unmarshal_datetime(to_marshal), expected_utc)
