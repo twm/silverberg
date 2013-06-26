@@ -27,7 +27,7 @@ setup(
     maintainer='Ken Wronkiewicz',
     maintainer_email='ken.wronkiewicz@rackspace.com',
     license='APL2',
-    url='https://github.com/racker/silverberg/',
+    url='https://github.com/rackerlabs/silverberg/',
     long_description=open('README.md').read(),
     packages=getPackages('silverberg'),
     install_requires=[
