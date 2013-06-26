@@ -38,7 +38,7 @@ class RoundRobinCassandraCluster(object):
     def _client(self):
         n = self._client_idx % len(self._seed_clients)
         client = self._seed_clients[n]
-        self._client_idx += 1
+        self._client_idx = (self._client_idx + 1) % len(self._seed_clients)
         return client
 
     def execute(self, *args, **kwargs):
