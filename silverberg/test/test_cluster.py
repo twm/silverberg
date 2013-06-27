@@ -39,7 +39,7 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
     def test_round_robin_execute(self):
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
 
-        for client, arg in [(0, 'foo'), (1, 'bar'), (2, 'baz'), (0, 'bax')]:
+        for client, arg in [(1, 'foo'), (2, 'bar'), (0, 'baz'), (1, 'bax')]:
             result = cluster.execute(arg)
             self.clients[client].execute.assert_called_with(arg)
             self.assertEqual(self.clients[client].execute.return_value, result)
