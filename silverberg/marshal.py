@@ -38,6 +38,7 @@ UUID_TYPE = "org.apache.cassandra.db.marshal.UUIDType"
 LEXICAL_UUID_TYPE = "org.apache.cassandra.db.marshal.LexicalType"
 TIME_UUID_TYPE = "org.apache.cassandra.db.marshal.TimeUUIDType"
 TIMESTAMP_TYPE = "org.apache.cassandra.db.marshal.DateType"
+COUNTER_TYPE = "org.apache.cassandra.db.marshal.CounterColumnType"
 
 
 def prepare(query, params):
@@ -77,6 +78,15 @@ def unmarshal_int(bytestr):
     return decode_bigint(bytestr)
 
 
+def unmarshal_initializeable_int(bytestr):
+    """
+    This is useful for counters, which may not be initialized (bytestring could be None).
+    """
+    if bytestr is None:
+        return None
+    return decode_bigint(bytestr)
+
+
 _long_packer = struct.Struct('>q')
 
 
@@ -101,7 +111,8 @@ unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  UUID_TYPE:         unmarshal_uuid,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
                  TIME_UUID_TYPE:    unmarshal_uuid,
-                 TIMESTAMP_TYPE:    unmarshal_timestamp}
+                 TIMESTAMP_TYPE:    unmarshal_timestamp,
+                 COUNTER_TYPE:      unmarshal_initializeable_int}
 
 
 def decode_bigint(term):
