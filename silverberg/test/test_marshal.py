@@ -24,7 +24,7 @@ from datetime import datetime
 
 from twisted.trial.unittest import TestCase
 
-from silverberg.marshal import marshal, unmarshal_timestamp
+from silverberg.marshal import marshal, unmarshal_timestamp, unmarshal_int, unmarshal_initializable_int
 
 
 class MarshallingUnmarshallingDatetime(TestCase):
@@ -62,3 +62,20 @@ class MarshallingUnmarshallingDatetime(TestCase):
         to_marshal = iso8601.parse_date('2012-10-20T04:15:34.154+04:00')
         expected_utc = datetime(2012, 10, 20, 0, 15, 34, 154000)
         self.assertEqual(self.marshal_unmarshal_datetime(to_marshal), expected_utc)
+
+
+class MarshallingUnmarshallingInteger(TestCase):
+    """
+    Test marshalling and unmarshalling of integers
+    """
+
+    def test_unmarshal_int(self):
+        marshaled = '\x00\x00\x00\x00\x00\x00\x00\x05'
+        self.assertEqual(unmarshal_int(marshaled), 5)
+
+    def test_unmarshal_initializable_int(self):
+        marshaled = '\x00\x00\x00\x00\x00\x00\x00\x05'
+        self.assertEqual(unmarshal_initializable_int(marshaled), 5)
+
+        # could not be initialized, i.e., None
+        self.assertEqual(unmarshal_initializable_int(None), None)
