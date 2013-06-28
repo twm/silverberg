@@ -28,7 +28,7 @@ setup(
     maintainer_email='ken.wronkiewicz@rackspace.com',
     license='APL2',
     url='https://github.com/rackerlabs/silverberg/',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     packages=getPackages('silverberg'),
     install_requires=[
         'Twisted >= 12.0.0',
