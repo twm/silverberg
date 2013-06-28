@@ -78,7 +78,7 @@ def unmarshal_int(bytestr):
     return decode_bigint(bytestr)
 
 
-def unmarshal_initializeable_int(bytestr):
+def unmarshal_initializable_int(bytestr):
     """
     This is useful for counters, which may not be initialized (bytestring could be None).
     """
@@ -112,7 +112,7 @@ unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
                  TIME_UUID_TYPE:    unmarshal_uuid,
                  TIMESTAMP_TYPE:    unmarshal_timestamp,
-                 COUNTER_TYPE:      unmarshal_initializeable_int}
+                 COUNTER_TYPE:      unmarshal_initializable_int}
 
 
 def decode_bigint(term):
