@@ -16,7 +16,7 @@ from silverberg.client import CQLClient
 
 from twisted.internet.error import ConnectError
 
-from twisted.internet import reactor, task
+from twisted.internet import task
 
 
 class RoundRobinCassandraCluster(object):
@@ -36,12 +36,22 @@ class RoundRobinCassandraCluster(object):
     MAX_TRIES = 3       # maximum number of tries to connect to cluster
     TRIES_INTERVAL = 1  # interval between each cluster connection try
 
-    def __init__(self, seed_endpoints, keyspace, user=None, password=None):
+    def __init__(self, seed_endpoints, keyspace, user=None, password=None, clock=None,
+                 max_tries=None, tries_interval=None):
         self._seed_clients = [
             CQLClient(endpoint, keyspace, user, password)
             for endpoint in seed_endpoints
         ]
         self._client_idx = 0
+
+        if clock:
+            self.clock = clock
+        else:
+            from twisted.internet import reactor
+            self.clock = reactor
+
+        self.max_tries = max_tries or self.MAX_TRIES
+        self.tries_interval = tries_interval or self.TRIES_INTERVAL
 
     def _client(self):
         n = self._client_idx % len(self._seed_clients)
@@ -59,11 +69,10 @@ class RoundRobinCassandraCluster(object):
             failure.trap(ConnectError)
             client_i += 1
             if client_i >= num_clients:
-                if tries >= self.MAX_TRIES:
+                tries += 1
+                if tries >= self.max_tries:
                     return failure
-                # REVIEW: would like to take reactor as arg but that will change signature of this
-                # method. Not sure if that is a good thing
-                return task.deferLater(reactor, self.TRIES_INTERVAL, _try_execute, tries + 1, 0)
+                return task.deferLater(self.clock, self.tries_interval, _try_execute, tries, 0)
             else:
                 return _try_execute(tries, client_i)
 
