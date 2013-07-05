@@ -25,8 +25,14 @@ from twisted.internet import defer, task
 
 
 class RoundRobinCassandraClusterTests(BaseTestCase):
+    """
+    Tests for mod:`silverberg.cluster`
+    """
 
     def setUp(self):
+        """
+        Mock CQLClient
+        """
         self.cql_client_patcher = mock.patch("silverberg.cluster.CQLClient")
         self.CQLClient = self.cql_client_patcher.start()
         self.addCleanup(self.cql_client_patcher.stop)
@@ -42,6 +48,9 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         self.CQLClient.side_effect = _CQLClient
 
     def test_round_robin_execute(self):
+        """
+        seed_clients are chosen in round robin manner
+        """
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
 
         for client, arg in [(1, 'foo'), (2, 'bar'), (0, 'baz'), (1, 'bax')]:
@@ -54,25 +63,50 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         If a cass node is down, it tries the next node in cluster
         """
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
-        self.clients[0].execute.return_value = defer.fail(ConnectionRefusedError())
+        self.clients[1].execute.return_value = defer.fail(ConnectionRefusedError())
         result = cluster.execute(2, 3)
-        self.clients[0].execute.assert_called_once_with(2, 3)
+        self.assertEqual(self.successResultOf(result), 'exec_ret3')
         self.clients[1].execute.assert_called_once_with(2, 3)
-        self.assertFalse(self.clients[2].execute.called)
-        self.assertEqual(self.successResultOf(result), 'exec_ret2')
+        self.clients[2].execute.assert_called_once_with(2, 3)
+        self.assertFalse(self.clients[0].execute.called)
 
     def test_two_nodes_down(self):
         """
         If 2 cass nodes are down, it tries the next node in cluster
         """
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
-        self.clients[0].execute.return_value = defer.fail(ConnectionRefusedError())
-        self.clients[1].execute.return_value = defer.fail(NoRouteError())
+        self.clients[1].execute.return_value = defer.fail(ConnectionRefusedError())
+        self.clients[2].execute.return_value = defer.fail(NoRouteError())
         result = cluster.execute(2, 3)
-        self.clients[0].execute.assert_called_once_with(2, 3)
         self.clients[1].execute.assert_called_once_with(2, 3)
         self.clients[2].execute.assert_called_once_with(2, 3)
-        self.assertEqual(self.successResultOf(result), 'exec_ret3')
+        self.clients[0].execute.assert_called_once_with(2, 3)
+        self.assertEqual(self.successResultOf(result), 'exec_ret1')
+
+    def test_other_error_propogated(self):
+        """
+        Any error other than subclass of ``ConnectError`` is propgoated
+        """
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
+        rand_err = ValueError('random err')
+        self.clients[1].execute.return_value = defer.fail(rand_err)
+        result = cluster.execute(2, 3)
+        self.assertEqual(self.failureResultOf(result).value, rand_err)
+        self.assertEqual(self.clients[2].execute.called, False)
+        self.assertEqual(self.clients[0].execute.called, False)
+
+    def test_other_error_propogated_on_node_down(self):
+        """
+        If first node gives ``ConnectError`` then second node is tried if it gives
+        error other than subclass of ``ConnectError`` it is propogated
+        """
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
+        self.clients[1].execute.return_value = defer.fail(NoRouteError())
+        rand_err = ValueError('random err')
+        self.clients[2].execute.return_value = defer.fail(rand_err)
+        result = cluster.execute(2, 3)
+        self.assertEqual(self.failureResultOf(result).value, rand_err)
+        self.assertEqual(self.clients[0].execute.called, False)
 
     def test_all_nodes_down_success_first_node(self):
         """
@@ -81,8 +115,8 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         clock = task.Clock()
         cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace',
                                              clock=clock)
-        self.clients[1].execute.return_value = defer.fail(ConnectionRefusedError())
-        self.clients[2].execute.return_value = defer.fail(NoRouteError())
+        self.clients[2].execute.return_value = defer.fail(ConnectionRefusedError())
+        self.clients[0].execute.return_value = defer.fail(NoRouteError())
 
         _execute_first_time = [True]
 
@@ -92,15 +126,15 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
                 return defer.fail(ConnectionRefusedError())
             return defer.succeed('execret1')
 
-        self.clients[0].execute.side_effect = _execute
+        self.clients[1].execute.side_effect = _execute
 
         result = cluster.execute(2, 3)
         clock.advance(1)
 
         self.assertEqual(self.successResultOf(result), 'execret1')
-        self.assertEqual(self.clients[0].execute.mock_calls, [mock.call(2, 3)] * 2)
-        self.clients[1].execute.assert_called_once_with(2, 3)
+        self.assertEqual(self.clients[1].execute.mock_calls, [mock.call(2, 3)] * 2)
         self.clients[2].execute.assert_called_once_with(2, 3)
+        self.clients[0].execute.assert_called_once_with(2, 3)
 
     def test_all_nodes_down_max_tries_reached(self):
         """
