@@ -42,11 +42,19 @@ COUNTER_TYPE = "org.apache.cassandra.db.marshal.CounterColumnType"
 
 
 def prepare(query, params):
-    # For every match of the form ":param_name", call marshal
-    # on kwargs['param_name'] and replace that section of the query
-    # with the result
-    new, count = re.subn(_param_re,
-                         lambda m: marshal(params[m.group(1)[1:]]), query)
+    """
+    For every match of the form ":param_name", call marshal
+    on kwargs['param_name'] and replace that section of the query
+    with the result
+    """
+    def repl(match):
+        name = match.group(1)[1:]
+        if name in params:
+            return marshal(params[name])
+        return ":%s" % name
+
+    new, count = re.subn(_param_re, repl, query)
+
     if len(params) > count:
         raise cql.ProgrammingError("More keywords were provided "
                                    "than parameters")
