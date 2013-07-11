@@ -1,7 +1,5 @@
 language: python
 
-language: python
-
 python:
     - 2.6
     - 2.7
@@ -11,4 +9,4 @@ install:
     - pip install -r requirements.txt
 
 script:
-    - make lint test docs
+    - make lint test
