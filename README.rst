@@ -2,6 +2,8 @@
 Silverberg
 ==========
 
+|build|_ |coverage|_
+
 Silverberg is a connection pooled, low-level client API for Cassandra CQL3 in Twisted python.
 
 Named after the SSS Silverberg, which contained the computer Cassandra in an episode of Red Dwarf.  Hey, all of the mythological references to Cassandra are all getting kinda old, no?
@@ -22,7 +24,7 @@ Prerequisites:
 
 * Python >= 2.7
 * Twisted
-* Thrift 
+* Thrift
 * Cassandra >= 1.2
 
 Version History
@@ -40,7 +42,7 @@ Version History
 - 0.0.x
     - Early development version
 
-Running Tests and Lint 
+Running Tests and Lint
 ======================
 
 ``make test`` and ``make lint``
@@ -55,6 +57,13 @@ Contributing
 
 We love pull requests!  Please:
 
-* Follow reasonable GitHub Pull Request practices 
+* Follow reasonable GitHub Pull Request practices
 * Make sure that your new contributed code contains reasonable unit tests
 * Unit tests and lint continue to pass
+
+
+.. |build| image:: https://secure.travis-ci.org/rackerlabs/silverberg.png?branch=master
+.. _build: http://travis-ci.org/rackerlabs/silverberg
+
+.. |coverage| image:: https://coveralls.io/repos/rackerlabs/silverberg/badge.png?branch=master
+.. _coverage: https://coveralls.io/r/rackerlabs/silverberg?branch=master

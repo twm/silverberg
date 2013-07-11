@@ -1,0 +1,21 @@
+language: python
+
+python:
+    - 2.6
+    - 2.7
+    - pypy
+
+matrix:
+    allow_failures:
+        - python: 2.6
+
+install:
+    - pip install -r requirements.txt
+    - pip install coveralls
+
+script:
+    - make lint
+    - coverage run `which trial` silverberg
+
+after_success:
+    - coveralls
