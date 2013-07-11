@@ -7,6 +7,10 @@ python:
 
 install:
     - pip install -r requirements.txt
+    - pip install coveralls
 
 script:
     - make lint test
+
+after_success:
+    - coveralls
