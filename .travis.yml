@@ -10,7 +10,7 @@ install:
     - pip install coveralls
 
 script:
-    - make lint test
+    - make lint coverage
 
 after_success:
     - coveralls
