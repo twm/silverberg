@@ -14,7 +14,8 @@ install:
     - pip install coveralls
 
 script:
-    - make lint coverage
+    - make lint
+    - coverage run `which trial` silverberg
 
 after_success:
     - coveralls
