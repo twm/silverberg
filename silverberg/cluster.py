@@ -53,29 +53,28 @@ class RoundRobinCassandraCluster(object):
         self.max_tries = max_tries or self.MAX_TRIES
         self.tries_interval = tries_interval or self.TRIES_INTERVAL
 
-    def _client(self):
-        self._client_idx = (self._client_idx + 1) % len(self._seed_clients)
-        return self._seed_clients[self._client_idx]
-
     def execute(self, *args, **kwargs):
         """
         See :py:func:`silverberg.client.CQLClient.execute`
         """
         num_clients = len(self._seed_clients)
+        start_client = (self._client_idx + 1) % num_clients
 
         def _client_error(failure, tries, client_i):
             failure.trap(ConnectError)
-            client_i += 1
-            if client_i >= num_clients:
+            client_i = (client_i + 1) % num_clients
+            if client_i == start_client:
                 tries += 1
                 if tries >= self.max_tries:
                     return failure
-                return task.deferLater(self.clock, self.tries_interval, _try_execute, tries, 0)
+                return task.deferLater(self.clock, self.tries_interval,
+                                       _try_execute, tries, start_client)
             else:
                 return _try_execute(tries, client_i)
 
         def _try_execute(tries, client_i):
-            d = self._client().execute(*args, **kwargs)
+            self._client_idx = client_i
+            d = self._seed_clients[client_i].execute(*args, **kwargs)
             return d.addErrback(_client_error, tries, client_i)
 
-        return _try_execute(0, 0)
+        return _try_execute(0, start_client)
