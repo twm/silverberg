@@ -54,6 +54,15 @@ class MockClientTests(BaseTestCase):
 
         self.endpoint.connect.side_effect = _connect
 
+    def test_disconnect(self):
+        """
+        When disconnect is called, the on demand thrift client is disconnected
+        """
+        client = TestingCQLClient(self.endpoint, 'blah')
+        self.assertFired(client.describe_version())
+        client.disconnect()
+        self.twisted_transport.loseConnection.assert_called_once_with()
+
     def test_login(self):
         """Test that login works as expected."""
         client = CQLClient(self.endpoint, 'blah', 'groucho', 'swordfish')
@@ -258,15 +267,6 @@ class MockTestingClientTests(MockClientTests):
         self.assertIsNone(client.transport)  # has not connected yet
         self.assertFired(client.describe_version())
         self.assertIs(client.transport, self.twisted_transport)
-
-    def test_disconnect(self):
-        """
-        When disconnect is called, the on demand thrift client is disconnected
-        """
-        client = TestingCQLClient(self.endpoint, 'blah')
-        self.assertFired(client.describe_version())
-        client.disconnect()
-        self.twisted_transport.loseConnection.assert_called_once_with()
 
     def test_pause(self):
         """
