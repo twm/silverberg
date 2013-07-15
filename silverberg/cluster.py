@@ -49,8 +49,10 @@ class RoundRobinCassandraCluster(object):
 
     def disconnect(self):
         """
-        Disconnect every client from the cassandra cluster.  Likely to be used for testing
-        purposes only.
+        Disconnect from the cassandra cluster.  Cassandara and Silverberg do
+        not require the connection to be closed before exiting.  However, this
+        method may be useful if resources are constrained, or for testing
+        purposes.
 
         :return: a :class:`DeferredList` that fires with a list of None's when every client
         has disconnected.

@@ -88,7 +88,10 @@ class CQLClient(object):
 
     def disconnect(self):
         """
-        Disconnect from the cassandra cluster.
+        Disconnect from the cassandra cluster.  Cassandara and Silverberg do
+        not require the connection to be closed before exiting.  However, this
+        method may be useful if resources are constrained, or for testing
+        purposes if using or injecting :class:`TestCQLClient: is impossible.
 
         :return: a :class:`Deferred` that fires with None when disconnected.
         """
