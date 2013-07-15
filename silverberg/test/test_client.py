@@ -58,7 +58,7 @@ class MockClientTests(BaseTestCase):
         """
         When disconnect is called, the on demand thrift client is disconnected
         """
-        client = TestingCQLClient(self.endpoint, 'blah')
+        client = CQLClient(self.endpoint, 'blah')
         self.assertFired(client.describe_version())
         client.disconnect()
         self.twisted_transport.loseConnection.assert_called_once_with()
