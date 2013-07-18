@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from twisted.internet.defer import DeferredList
+
 from silverberg.client import CQLClient
 
 
@@ -44,3 +46,15 @@ class RoundRobinCassandraCluster(object):
         See :py:func:`silverberg.client.CQLClient.execute`
         """
         return self._client().execute(*args, **kwargs)
+
+    def disconnect(self):
+        """
+        Disconnect from the cassandra cluster.  Cassandara and Silverberg do
+        not require the connection to be closed before exiting.  However, this
+        method may be useful if resources are constrained, or for testing
+        purposes.
+
+        :return: a :class:`DeferredList` that fires with a list of None's when every client
+        has disconnected.
+        """
+        return DeferredList([client.disconnect() for client in self._seed_clients])
