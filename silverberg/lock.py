@@ -170,7 +170,7 @@ class BasicLock(object):
             return d
 
         def lock_not_acquired(failure):
-            failure.trap(BusyLockError)
+            failure.trap(BusyLockError, NoLockClaimsError)
             retries[0] += 1
             if retries[0] <= self._max_retry:
                 return task.deferLater(self._reactor, self._retry_wait, acquire_lock)
