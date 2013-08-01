@@ -16,6 +16,8 @@ from twisted.internet.defer import DeferredList
 
 from silverberg.client import CQLClient
 
+from twisted.internet.error import ConnectError
+
 
 class RoundRobinCassandraCluster(object):
     """
@@ -30,6 +32,7 @@ class RoundRobinCassandraCluster(object):
     :param str user: Optional username.
     :param str password: Optional password.
     """
+
     def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
             CQLClient(endpoint, keyspace, user, password)
@@ -37,15 +40,27 @@ class RoundRobinCassandraCluster(object):
         ]
         self._client_idx = 0
 
-    def _client(self):
-        self._client_idx = (self._client_idx + 1) % len(self._seed_clients)
-        return self._seed_clients[self._client_idx]
-
     def execute(self, *args, **kwargs):
         """
         See :py:func:`silverberg.client.CQLClient.execute`
         """
-        return self._client().execute(*args, **kwargs)
+        num_clients = len(self._seed_clients)
+        start_client = (self._client_idx + 1) % num_clients
+
+        def _client_error(failure, client_i):
+            failure.trap(ConnectError)
+            client_i = (client_i + 1) % num_clients
+            if client_i == start_client:
+                return failure
+            else:
+                return _try_execute(client_i)
+
+        def _try_execute(client_i):
+            self._client_idx = client_i
+            d = self._seed_clients[client_i].execute(*args, **kwargs)
+            return d.addErrback(_client_error, client_i)
+
+        return _try_execute(start_client)
 
     def disconnect(self):
         """
