@@ -18,8 +18,6 @@ from silverberg.client import CQLClient
 
 from twisted.internet.error import ConnectError
 
-from twisted.internet import task
-
 
 class RoundRobinCassandraCluster(object):
     """
