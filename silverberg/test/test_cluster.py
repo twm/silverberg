@@ -21,7 +21,7 @@ from silverberg.client import CQLClient
 from silverberg.cluster import RoundRobinCassandraCluster
 
 from twisted.internet.error import ConnectionRefusedError, NoRouteError
-from twisted.internet import defer, task
+from twisted.internet import defer
 
 
 class RoundRobinCassandraClusterTests(BaseTestCase):
@@ -123,3 +123,21 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         self.assertEqual(self.failureResultOf(result).value, err)
         for i in range(3):
             self.clients[i].execute.assert_called_once_with(2, 3)
+
+    def test_multiple_clients(self):
+        """
+        When multiple clients execute simultaneously, it does not skip nodes. It basically ensures
+        that http://bit.ly/1csEIRR situation does not happen
+        """
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
+
+        def _execute(*args):
+            cluster.execute(2, 3)
+            return defer.fail(NoRouteError())
+        self.clients[1].execute.side_effect = _execute
+
+        result = cluster.execute(2, 3)
+
+        self.assertEqual(self.successResultOf(result), 'exec_ret3')
+        self.assertEqual(self.clients[2].execute.call_args_list, [mock.call(2, 3)] * 2)
+        self.clients[1].execute.assert_called_once_with(2, 3)
