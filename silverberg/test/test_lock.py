@@ -21,6 +21,7 @@ from silverberg.client import CQLClient
 from silverberg.lock import BasicLock, BusyLockError, with_lock
 from silverberg.test.util import BaseTestCase
 from silverberg.cassandra.ttypes import InvalidRequestException
+from silverberg.lock import NoLockClaimsError
 
 
 class BasicLockTest(BaseTestCase):
@@ -72,6 +73,17 @@ class BasicLockTest(BaseTestCase):
         result = self.failureResultOf(d)
         self.assertTrue(result.check(BusyLockError))
         self.client.execute.assert_called_once_with(*expected)
+
+    def test__verify_lock_no_rows(self):
+        """
+        _verify_lock fails with an error when response contains no rows.
+        """
+        lock_uuid = uuid.uuid1()
+        lock = BasicLock(self.client, self.table_name, lock_uuid)
+        d = lock._verify_lock([])
+
+        result = self.failureResultOf(d)
+        self.assertTrue(result.check(NoLockClaimsError))
 
     def test__write_lock(self):
         lock_uuid = uuid.uuid1()
@@ -149,6 +161,34 @@ class BasicLockTest(BaseTestCase):
 
         responses = [
             defer.fail(BusyLockError('', '')),
+            defer.succeed(True)
+        ]
+
+        def _new_verify_lock(response):
+            return responses.pop(0)
+        lock._verify_lock = _new_verify_lock
+
+        def _side_effect(*args, **kwargs):
+            return defer.succeed([])
+        self.client.execute.side_effect = _side_effect
+
+        d = lock.acquire()
+
+        clock.advance(20)
+        self.assertEqual(self.assertFired(d), True)
+        self.assertEqual(self.client.execute.call_count, 4)
+
+    def test_acquire_retries_on_NoLockClaimsError(self):
+        """
+        acquire retries when _verify_lock fails with a NoLockClaimsError.
+        """
+        lock_uuid = uuid.uuid1()
+
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1, reactor=clock)
+
+        responses = [
+            defer.fail(NoLockClaimsError('', '')),
             defer.succeed(True)
         ]
 
