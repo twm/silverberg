@@ -33,6 +33,14 @@ class BusyLockError(Exception):
                                                             table=lock_table))
 
 
+class NoLockClaimsError(Exception):
+    def __init__(self, lock_table, lock_id):
+        super(NoLockClaimsError, self).__init__(
+            "No claims were found for lock {id} on {table}".format(
+                id=lock_id,
+                table=lock_table))
+
+
 class BasicLock(object):
     """A locking mechanism for Cassandra.
 
@@ -83,6 +91,10 @@ class BasicLock(object):
                                     {'lockId': self._lock_id}, ConsistencyLevel.QUORUM)
 
     def _verify_lock(self, response):
+        if len(response) == 0:
+            return self.release().addCallback(lambda _: defer.fail(
+                NoLockClaimsError(self._lock_table, self._lock_id)))
+
         if response[0]['claimId'] == self._claim_id:
             return defer.succeed(True)
         else:
