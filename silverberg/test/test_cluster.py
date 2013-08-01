@@ -141,3 +141,10 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         self.assertEqual(self.successResultOf(result), 'exec_ret3')
         self.assertEqual(self.clients[2].execute.call_args_list, [mock.call(2, 3)] * 2)
         self.clients[1].execute.assert_called_once_with(2, 3)
+
+    def test_disconnect(self):
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
+        cluster.disconnect()
+
+        for client in self.clients:
+            client.disconnect.assert_called_with()

@@ -24,7 +24,21 @@ from datetime import datetime
 
 from twisted.trial.unittest import TestCase
 
-from silverberg.marshal import marshal, unmarshal_timestamp, unmarshal_int, unmarshal_initializable_int
+from silverberg.marshal import marshal, unmarshal_timestamp, unmarshal_int, \
+    unmarshal_initializable_int, prepare
+
+
+class StatementPreparation(TestCase):
+    """
+    Test preparint a query with optional parameters.
+    """
+
+    def test_prepare(self):
+        result = prepare("string :with a colon :with", {'with': 'value'})
+        self.assertEqual(result, "string 'value' a colon 'value'")
+
+        result = prepare("string :with a colon :with", {})
+        self.assertEqual(result, "string :with a colon :with")
 
 
 class MarshallingUnmarshallingDatetime(TestCase):
