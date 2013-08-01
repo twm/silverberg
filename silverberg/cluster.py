@@ -33,25 +33,12 @@ class RoundRobinCassandraCluster(object):
     :param str password: Optional password.
     """
 
-    MAX_TRIES = 3       # maximum number of tries to connect to cluster
-    TRIES_INTERVAL = 1  # interval between each cluster connection try
-
-    def __init__(self, seed_endpoints, keyspace, user=None, password=None, clock=None,
-                 max_tries=None, tries_interval=None):
+    def __init__(self, seed_endpoints, keyspace, user=None, password=None):
         self._seed_clients = [
             CQLClient(endpoint, keyspace, user, password)
             for endpoint in seed_endpoints
         ]
         self._client_idx = 0
-
-        if clock:
-            self.clock = clock
-        else:
-            from twisted.internet import reactor
-            self.clock = reactor
-
-        self.max_tries = max_tries or self.MAX_TRIES
-        self.tries_interval = tries_interval or self.TRIES_INTERVAL
 
     def execute(self, *args, **kwargs):
         """
@@ -60,21 +47,17 @@ class RoundRobinCassandraCluster(object):
         num_clients = len(self._seed_clients)
         start_client = (self._client_idx + 1) % num_clients
 
-        def _client_error(failure, tries, client_i):
+        def _client_error(failure, client_i):
             failure.trap(ConnectError)
             client_i = (client_i + 1) % num_clients
             if client_i == start_client:
-                tries += 1
-                if tries >= self.max_tries:
-                    return failure
-                return task.deferLater(self.clock, self.tries_interval,
-                                       _try_execute, tries, start_client)
+                return failure
             else:
-                return _try_execute(tries, client_i)
+                return _try_execute(client_i)
 
-        def _try_execute(tries, client_i):
+        def _try_execute(client_i):
             self._client_idx = client_i
             d = self._seed_clients[client_i].execute(*args, **kwargs)
-            return d.addErrback(_client_error, tries, client_i)
+            return d.addErrback(_client_error, client_i)
 
-        return _try_execute(0, start_client)
+        return _try_execute(start_client)

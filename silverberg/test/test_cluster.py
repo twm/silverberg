@@ -108,51 +108,18 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         self.assertEqual(self.failureResultOf(result).value, rand_err)
         self.assertEqual(self.clients[0].execute.called, False)
 
-    def test_all_nodes_down_success_first_node(self):
+    def test_all_nodes_down(self):
         """
-        If all cass nodes are down, it tries the cluster again after 1 second and succeeds
+        If all cass nodes are down, it gives up eventually by raising the
+        connection error exception
         """
-        clock = task.Clock()
-        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace',
-                                             clock=clock)
-        self.clients[2].execute.return_value = defer.fail(ConnectionRefusedError())
-        self.clients[0].execute.return_value = defer.fail(NoRouteError())
-
-        _execute_first_time = [True]
-
-        def _execute(*args):
-            if _execute_first_time[0]:
-                _execute_first_time[0] = False
-                return defer.fail(ConnectionRefusedError())
-            return defer.succeed('execret1')
-
-        self.clients[1].execute.side_effect = _execute
-
-        result = cluster.execute(2, 3)
-        clock.advance(1)
-
-        self.assertEqual(self.successResultOf(result), 'execret1')
-        self.assertEqual(self.clients[1].execute.mock_calls, [mock.call(2, 3)] * 2)
-        self.clients[2].execute.assert_called_once_with(2, 3)
-        self.clients[0].execute.assert_called_once_with(2, 3)
-
-    def test_all_nodes_down_max_tries_reached(self):
-        """
-        If all cass nodes are down consistently, it tries the cluster max_tries times and
-        gives up eventually by raising the connection error exception
-        """
-        clock = task.Clock()
-        max_tries = 3
-        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace',
-                                             clock=clock, max_tries=max_tries)
+        cluster = RoundRobinCassandraCluster(['one', 'two', 'three'], 'keyspace')
         err = ConnectionRefusedError()
         for i in range(3):
             self.clients[i].execute.side_effect = lambda *_: defer.fail(err)
 
         result = cluster.execute(2, 3)
-        clock.pump([1] * max_tries)
 
         self.assertEqual(self.failureResultOf(result).value, err)
         for i in range(3):
-            self.assertEqual(self.clients[i].execute.mock_calls,
-                             [mock.call(2, 3)] * max_tries)
+            self.clients[i].execute.assert_called_once_with(2, 3)
