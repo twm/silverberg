@@ -13,27 +13,40 @@
 # limitations under the License.
 
 
-class LoggableCQLClient(object):
+from twisted.python.failure import Failure
+
+
+class LoggingCQLClient(object):
     """
-    A loggable CQL client. Every call will be timed and logged
+    A logging CQL client. Every query will be timed and logged
 
     :param client: A `CQLClient` or `RoundRobinCassandraCluster` instance
     :param log: A bound logger that has .msg() method
     """
 
-    def __init__(self, client, log):
+    def __init__(self, client, log, clock=None):
         self.client = client
         self.log = log
+        if clock:
+            self.clock = clock
+        else:
+            from twisted.internet import reactor
+            self.clock = reactor
 
-    def execute(self, *args, **kwargs):
+    def execute(self, query, args, consistency):
         """
         See :py:func:`silverberg.client.CQLClient.execute`
         """
-        start_time = datetime.now()
+        start_seconds = self.clock.seconds()
+
         def record_time(result):
-            time_taken = datetime.now() - start_time
-            self.log.msg('CQL query executed', args=args, time_taken=time_taken)
+            seconds_taken = self.clock.seconds() - start_seconds
+            log = self.log.bind(query=query, data=args, consistency=consistency,
+                                seconds_taken=seconds_taken)
+            if isinstance(result, Failure):
+                log.msg('CQL query execution failed', failure=result)
+            else:
+                log.msg('CQL query executed successfully')
             return result
-        return self.client.execute(*args, **kwargs).addBoth(record_time)
 
-
+        return self.client.execute(query, args, consistency).addBoth(record_time)
