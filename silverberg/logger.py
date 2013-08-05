@@ -41,12 +41,12 @@ class LoggingCQLClient(object):
 
         def record_time(result):
             seconds_taken = self.clock.seconds() - start_seconds
-            log = self.log.bind(query=query, data=args, consistency=consistency,
-                                seconds_taken=seconds_taken)
+            kwargs = dict(query=query, data=args, consistency=consistency,
+                          seconds_taken=seconds_taken)
             if isinstance(result, Failure):
-                log.msg('CQL query execution failed', failure=result)
+                self.log.msg('CQL query execution failed', failure=result, **kwargs)
             else:
-                log.msg('CQL query executed successfully')
+                self.log.msg('CQL query executed successfully', **kwargs)
             return result
 
         return self.client.execute(query, args, consistency).addBoth(record_time)

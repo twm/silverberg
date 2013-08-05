@@ -32,7 +32,7 @@ class LoggingCQLClientTests(TestCase):
         Mock CQLClient and log instance
         """
         self.client = mock.Mock(spec=['execute'])
-        self.log = mock.Mock(spec=['msg', 'bind'])
+        self.log = mock.Mock(spec=['msg'])
         self.clock = Clock()
         self.logclient = LoggingCQLClient(self.client, self.log, self.clock)
 
@@ -48,9 +48,8 @@ class LoggingCQLClientTests(TestCase):
         result = self.logclient.execute('query', {'d1': 1, 'd2': 2}, 7)
         self.assertEqual(self.successResultOf(result), 'returnvalue')
         self.client.execute.assert_called_once_with('query', {'d1': 1, 'd2': 2}, 7)
-        self.log.bind.assert_called_once_with(query='query', data={'d1': 1, 'd2': 2}, consistency=7,
-                                              seconds_taken=10)
-        self.log.bind.return_value.msg.assert_called_once_with('CQL query executed successfully')
+        self.log.msg.assert_called_once_with('CQL query executed successfully', query='query',
+                                             data={'d1': 1, 'd2': 2}, consistency=7, seconds_taken=10)
 
     def test_client_execute_failure(self):
         """
@@ -67,9 +66,8 @@ class LoggingCQLClientTests(TestCase):
         result = self.logclient.execute('query', {'d1': 1, 'd2': 2}, 7)
         self.assertEqual(self.failureResultOf(result).value, err)
         self.client.execute.assert_called_once_with('query', {'d1': 1, 'd2': 2}, 7)
-        self.log.bind.assert_called_once_with(query='query', data={'d1': 1, 'd2': 2}, consistency=7,
-                                              seconds_taken=10)
-        self.log.bind.return_value.msg.assert_called_once_with('CQL query execution failed',
-                                                               failure=mock.ANY)
-        _, kwargs = self.log.bind.return_value.msg.call_args
+        self.log.msg.assert_called_once_with('CQL query execution failed', failure=mock.ANY,
+                                             query='query', data={'d1': 1, 'd2': 2}, consistency=7,
+                                             seconds_taken=10)
+        _, kwargs = self.log.msg.call_args
         self.assertEqual(kwargs['failure'].value, err)
