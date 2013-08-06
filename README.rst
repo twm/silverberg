@@ -30,7 +30,11 @@ Prerequisites:
 Version History
 ===============
 
-- Mainline...
+- 0.1.3
+    -  RoundRobinCassandraCluster tries the next node in the cluster if it gets conection error
+    -  LoggingCQLClient class implemented that will log every CQL query, parameters and seconds taken to
+       execute the query
+    -  Fixed bug in locks recipe where it didn't get row in some rare scenarios
     -  Fix marshalling of counter
     -  Issue with how round robin cluster keeps track of rotating client
 - 0.1.2
