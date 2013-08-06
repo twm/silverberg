@@ -25,28 +25,28 @@ class LoggingCQLClient(object):
     """
 
     def __init__(self, client, log, clock=None):
-        self.client = client
-        self.log = log
+        self._client = client
+        self._log = log
         if clock:
-            self.clock = clock
+            self._clock = clock
         else:
             from twisted.internet import reactor
-            self.clock = reactor
+            self._clock = reactor
 
     def execute(self, query, args, consistency):
         """
         See :py:func:`silverberg.client.CQLClient.execute`
         """
-        start_seconds = self.clock.seconds()
+        start_seconds = self._clock.seconds()
 
         def record_time(result):
-            seconds_taken = self.clock.seconds() - start_seconds
+            seconds_taken = self._clock.seconds() - start_seconds
             kwargs = dict(query=query, data=args, consistency=consistency,
                           seconds_taken=seconds_taken)
             if isinstance(result, Failure):
-                self.log.msg('CQL query execution failed', failure=result, **kwargs)
+                self._log.msg('CQL query execution failed', failure=result, **kwargs)
             else:
-                self.log.msg('CQL query executed successfully', **kwargs)
+                self._log.msg('CQL query executed successfully', **kwargs)
             return result
 
-        return self.client.execute(query, args, consistency).addBoth(record_time)
+        return self._client.execute(query, args, consistency).addBoth(record_time)
