@@ -66,8 +66,8 @@ class LoggingCQLClientTests(TestCase):
         result = self.logclient.execute('query', {'d1': 1, 'd2': 2}, 7)
         self.assertEqual(self.failureResultOf(result).value, err)
         self.client.execute.assert_called_once_with('query', {'d1': 1, 'd2': 2}, 7)
-        self.log.msg.assert_called_once_with('CQL query execution failed', failure=mock.ANY,
+        self.log.msg.assert_called_once_with('CQL query execution failed', reason=mock.ANY,
                                              query='query', data={'d1': 1, 'd2': 2}, consistency=7,
                                              seconds_taken=10)
         _, kwargs = self.log.msg.call_args
-        self.assertEqual(kwargs['failure'].value, err)
+        self.assertEqual(kwargs['reason'].value, err)

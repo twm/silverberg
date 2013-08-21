@@ -44,7 +44,8 @@ class LoggingCQLClient(object):
             kwargs = dict(query=query, data=args, consistency=consistency,
                           seconds_taken=seconds_taken)
             if isinstance(result, Failure):
-                self._log.msg('CQL query execution failed', failure=result, **kwargs)
+                self._log.msg('CQL query execution failed',
+                              reason=result, **kwargs)
             else:
                 self._log.msg('CQL query executed successfully', **kwargs)
             return result
