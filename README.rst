@@ -30,6 +30,8 @@ Prerequisites:
 Version History
 ===============
 
+- 0.1.4
+    - LoggingCQLClient logs cql failures as msg
 - 0.1.3
     -  RoundRobinCassandraCluster tries the next node in the cluster if it gets conection error
     -  LoggingCQLClient class implemented that will log every CQL query, parameters and seconds taken to
