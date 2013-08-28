@@ -84,10 +84,8 @@ class BasicLock(object):
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
-        if log:
-            self._log = log.bind(lock_id=self._lock_id, claim_id=self._claim_id)
-        else:
-            self._log = None
+        self._log = log
+        self._log_kwargs = dict(lock_id=self._lock_id, claim_id=self._claim_id)
 
     def _read_lock(self, ignored):
         query = 'SELECT * FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
@@ -104,7 +102,7 @@ class BasicLock(object):
                 self._lock_acquired_seconds = self._reactor.seconds()
                 seconds = self._lock_acquired_seconds - self._acquire_start_seconds
                 self._log.msg('Acquired lock in {lock_acquire_time} seconds',
-                              lock_acquire_time=seconds)
+                              lock_acquire_time=seconds, **self._log_kwargs)
             return defer.succeed(True)
         else:
             return self.release().addCallback(lambda _: defer.fail(
@@ -164,7 +162,7 @@ class BasicLock(object):
         def _log_release_time(result):
             seconds = self._reactor.seconds() - self._lock_acquired_seconds
             self._log.msg('Released lock. Was held for {lock_held_time} seconds',
-                          lock_held_time=seconds)
+                          lock_held_time=seconds, **self._log_kwargs)
             return result
 
         return self._log and d.addBoth(_log_release_time) or d
@@ -195,7 +193,7 @@ class BasicLock(object):
                 if self._log:
                     seconds = self._reactor.seconds() - self._acquire_start_seconds
                     self._log.msg('Could not acquire lock in {lock_acquire_fail_time} seconds',
-                                  lock_acquire_fail_time=seconds)
+                                  lock_acquire_fail_time=seconds, **self._log_kwargs)
                 return failure
 
         return acquire_lock()
