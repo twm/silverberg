@@ -110,14 +110,8 @@ class CQLClient(object):
         d.addCallback(_vers)
         return d
 
-    def _unmarshal_result(self, schema, raw_rows, _unmarshallers=None):
+    def _unmarshal_result(self, schema, raw_rows, _unmarshallers):
         rows = []
-
-        # XXX: better feature - injecting custom unmarshallers into the
-        # CQLClient itself - for now, this can be used for testing
-        # unmarshalling
-        if _unmarshallers is None:
-            _unmarshallers = unmarshallers
 
         def _unmarshal_val(type, val):
             if val is not None and type in _unmarshallers:
@@ -179,7 +173,8 @@ class CQLClient(object):
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
-                return self._unmarshal_result(result.schema, result.rows)
+                return self._unmarshal_result(result.schema, result.rows,
+                                              unmarshallers)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:
