@@ -169,6 +169,26 @@ class MockClientTests(BaseTestCase):
                                                                      ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
+    def test_cql_None_not_deserialized(self):
+        """
+        If the value is None, it is not deserialized at all.
+        """
+        raw_rows = [ttypes.CqlRow(
+            key='blah', columns=[ttypes.Column(name='fff', value=None)])]
+        schema = ttypes.CqlMetadata(value_types={
+            'fff': 'org.apache.cassandra.db.marshal.AlwaysFailType'})
+
+        client = CQLClient(self.endpoint, 'blah')
+
+        always_blow_up = mock.Mock(spec=[], side_effect=Exception)
+
+        rows = client._unmarshal_result(schema, raw_rows, {
+            'org.apache.cassandra.db.marshal.AlwaysFailType': always_blow_up
+        })
+
+        self.assertEqual(rows, [{'fff': None}])
+        self.assertEqual(always_blow_up.call_count, 0)
+
     def test_cql_insert(self):
         """Test a mock CQL insert with a VOID response works."""
         expected = None
