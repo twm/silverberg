@@ -126,7 +126,8 @@ class OnDemandThriftClient(object):
         if not reason.check(ConnectionDone):
             log.err(reason,
                     "Lost current connection, reconnecting on demand.",
-                    system=self.__class__.__name__)
+                    system=self.__class__.__name__,
+                    node=self._transport.getPeer())
 
     def _connection_made(self, client):
         self._state = _State.CONNECTED
