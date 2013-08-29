@@ -207,7 +207,6 @@ class BasicLock(object):
                               lock_acquire_fail_time=seconds, **self._log_kwargs)
             return failure
 
-
         return acquire_lock().addErrback(log_lock_acquire_failure)
 
 
