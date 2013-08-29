@@ -429,4 +429,3 @@ class WithLockTest(BaseTestCase):
 
         self.lock.acquire.assert_called_once_with()
         self.lock.release.assert_called_once_with()
-
