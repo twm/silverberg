@@ -101,11 +101,6 @@ class BasicLock(object):
                 NoLockClaimsError(self._lock_table, self._lock_id)))
 
         if response[0]['claimId'] == self._claim_id:
-            if self._log:
-                self._lock_acquired_seconds = self._reactor.seconds()
-                seconds = self._lock_acquired_seconds - self._acquire_start_seconds
-                self._log.msg('Acquired lock in {} seconds'.format(seconds),
-                              lock_acquire_time=seconds, **self._log_kwargs)
             return defer.succeed(True)
         else:
             return self.release().addCallback(lambda _: defer.fail(
@@ -181,10 +176,19 @@ class BasicLock(object):
         retries = [0]
         self._acquire_start_seconds = self._reactor.seconds()
 
+        def log_lock_acquired(result):
+            self._lock_acquired_seconds = self._reactor.seconds()
+            seconds = self._lock_acquired_seconds - self._acquire_start_seconds
+            self._log.msg('Acquired lock in {} seconds'.format(seconds),
+                          lock_acquire_time=seconds, **self._log_kwargs)
+            return result
+
         def acquire_lock():
             d = self._write_lock()
             d.addCallback(self._read_lock)
             d.addCallback(self._verify_lock)
+            if self._log:
+                d.addCallback(log_lock_acquired)
             d.addErrback(lock_not_acquired)
             return d
 
