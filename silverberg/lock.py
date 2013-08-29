@@ -198,13 +198,17 @@ class BasicLock(object):
             if retries[0] <= self._max_retry:
                 return task.deferLater(self._reactor, self._retry_wait, acquire_lock)
             else:
-                if self._log:
-                    seconds = self._reactor.seconds() - self._acquire_start_seconds
-                    self._log.msg('Could not acquire lock in {} seconds'.format(seconds),
-                                  lock_acquire_fail_time=seconds, **self._log_kwargs)
                 return failure
 
-        return acquire_lock()
+        def log_lock_acquire_failure(failure):
+            if self._log:
+                seconds = self._reactor.seconds() - self._acquire_start_seconds
+                self._log.msg('Could not acquire lock in {} seconds'.format(seconds),
+                              lock_acquire_fail_time=seconds, **self._log_kwargs)
+            return failure
+
+
+        return acquire_lock().addErrback(log_lock_acquire_failure)
 
 
 def with_lock(lock, func, *args, **kwargs):
