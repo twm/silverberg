@@ -84,8 +84,11 @@ class BasicLock(object):
         if reactor is None:
             from twisted.internet import reactor
         self._reactor = reactor
+
         self._log = log
         self._log_kwargs = dict(lock_id=self._lock_id, claim_id=self._claim_id)
+        self._lock_acquired_seconds = 0
+        self._acquire_start_seconds = 0
 
     def _read_lock(self, ignored):
         query = 'SELECT * FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
@@ -101,7 +104,7 @@ class BasicLock(object):
             if self._log:
                 self._lock_acquired_seconds = self._reactor.seconds()
                 seconds = self._lock_acquired_seconds - self._acquire_start_seconds
-                self._log.msg('Acquired lock in {lock_acquire_time} seconds',
+                self._log.msg('Acquired lock in {} seconds'.format(seconds),
                               lock_acquire_time=seconds, **self._log_kwargs)
             return defer.succeed(True)
         else:
@@ -160,12 +163,13 @@ class BasicLock(object):
                                  ConsistencyLevel.QUORUM)
 
         def _log_release_time(result):
-            seconds = self._reactor.seconds() - self._lock_acquired_seconds
-            self._log.msg('Released lock. Was held for {lock_held_time} seconds',
-                          lock_held_time=seconds, **self._log_kwargs)
+            if self._log:
+                seconds = self._reactor.seconds() - self._lock_acquired_seconds
+                self._log.msg('Released lock. Was held for {} seconds'.format(seconds),
+                              lock_held_time=seconds, **self._log_kwargs)
             return result
 
-        return self._log and d.addBoth(_log_release_time) or d
+        return d.addBoth(_log_release_time)
 
     def acquire(self):
         """
@@ -175,9 +179,9 @@ class BasicLock(object):
         times, with a specified wait time.
         """
         retries = [0]
+        self._acquire_start_seconds = self._reactor.seconds()
 
         def acquire_lock():
-            self._acquire_start_seconds = self._reactor.seconds()
             d = self._write_lock()
             d.addCallback(self._read_lock)
             d.addCallback(self._verify_lock)
@@ -192,7 +196,7 @@ class BasicLock(object):
             else:
                 if self._log:
                     seconds = self._reactor.seconds() - self._acquire_start_seconds
-                    self._log.msg('Could not acquire lock in {lock_acquire_fail_time} seconds',
+                    self._log.msg('Could not acquire lock in {} seconds'.format(seconds),
                                   lock_acquire_fail_time=seconds, **self._log_kwargs)
                 return failure
 
