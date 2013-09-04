@@ -110,12 +110,12 @@ class CQLClient(object):
         d.addCallback(_vers)
         return d
 
-    def _unmarshal_result(self, schema, raw_rows):
+    def _unmarshal_result(self, schema, raw_rows, _unmarshallers):
         rows = []
 
         def _unmarshal_val(type, val):
-            if type in unmarshallers:
-                return unmarshallers[type](val)
+            if val is not None and type in _unmarshallers:
+                return _unmarshallers[type](val)
             # XXX: We do not currently implement the full range of types.
             # So we can not unmarshal all types in which case we should just
             # return the raw bytes.
@@ -173,7 +173,8 @@ class CQLClient(object):
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
-                return self._unmarshal_result(result.schema, result.rows)
+                return self._unmarshal_result(result.schema, result.rows,
+                                              unmarshallers)
             elif result.type == ttypes.CqlResultType.INT:
                 return result.num
             else:
