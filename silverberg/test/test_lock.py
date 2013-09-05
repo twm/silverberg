@@ -326,7 +326,7 @@ class BasicLockTest(BaseTestCase):
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
     def test_lock_acquire_failure_logged(self, uuid1):
         """
-        If lock acquisition fails, it is logged along with time taken
+        If lock acquisition fails due to BusyLockError, it is logged along with time taken
         """
         lock_uuid = 'lock_uuid'
         log = mock.MagicMock(spec=['msg'])
@@ -344,9 +344,40 @@ class BasicLockTest(BaseTestCase):
 
         d = lock.acquire()
         clock.advance(3)
-        self.failureResultOf(d)
-        log.msg.assert_called_with('Could not acquire lock in 3.0 seconds',
-                                   lock_acquire_fail_time=3.0, lock_id=lock_uuid,
+        f = self.failureResultOf(d, BusyLockError)
+        log.msg.assert_called_with('Could not acquire lock in 3.0 seconds due to ' + str(f),
+                                   lock_acquire_fail_time=3.0, reason=f, lock_id=lock_uuid,
+                                   claim_id='claim_uuid')
+
+    @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
+    def test_lock_acquire_anyfailure_logged(self, uuid1):
+        """
+        If lock acquisition fails due to any error, it is logged along with time taken
+        """
+        lock_uuid = 'lock_uuid'
+        log = mock.MagicMock(spec=['msg'])
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1,
+                         retry_wait=3, reactor=clock, log=log)
+        self.responses = [
+            None,   # _write_lock
+            [{'lockId': lock._lock_id, 'claimId': 'wait for it..'}],  # _read_lock
+            None,   # delete for release lock
+            None,   # _write_lock again
+        ]
+
+        def _execute(*args, **kwargs):
+            if not self.responses:
+                return defer.fail(ValueError('hmm'))
+            return defer.succeed(self.responses.pop(0))
+
+        self.client.execute.side_effect = _execute
+
+        d = lock.acquire()
+        clock.advance(3)
+        f = self.failureResultOf(d, ValueError)
+        log.msg.assert_called_with('Could not acquire lock in 3.0 seconds due to ' + str(f),
+                                   lock_acquire_fail_time=3.0, reason=f, lock_id=lock_uuid,
                                    claim_id='claim_uuid')
 
 

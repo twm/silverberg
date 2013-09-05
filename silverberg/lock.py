@@ -203,8 +203,9 @@ class BasicLock(object):
         def log_lock_acquire_failure(failure):
             if self._log:
                 seconds = self._reactor.seconds() - self._acquire_start_seconds
-                self._log.msg('Could not acquire lock in {} seconds'.format(seconds),
-                              lock_acquire_fail_time=seconds, **self._log_kwargs)
+                self._log.msg(
+                    'Could not acquire lock in {} seconds due to {}'.format(seconds, failure),
+                    lock_acquire_fail_time=seconds, reason=failure, **self._log_kwargs)
             return failure
 
         return acquire_lock().addErrback(log_lock_acquire_failure)
