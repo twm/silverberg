@@ -33,7 +33,7 @@ Version History
 - 0.1.4
     -  LoggingCQLClient logs cql failures as msg
     -  ``null`` values unmarshal correctly now, no matter what the
-        type, because ``null`` values will just always be unmarshalled as None
+       type, because ``null`` values will just always be unmarshalled as None
 - 0.1.3
     -  RoundRobinCassandraCluster tries the next node in the cluster if it gets conection error
     -  LoggingCQLClient class implemented that will log every CQL query, parameters and seconds taken to
