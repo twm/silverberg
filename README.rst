@@ -34,6 +34,8 @@ Version History
     -  LoggingCQLClient logs cql failures as msg
     -  ``null`` values unmarshal correctly now, no matter what the
        type, because ``null`` values will just always be unmarshalled as None
+    -  BasicLock takes optional log argument that if given logs when the lock was acquired and released
+       along with time taken
 - 0.1.3
     -  RoundRobinCassandraCluster tries the next node in the cluster if it gets conection error
     -  LoggingCQLClient class implemented that will log every CQL query, parameters and seconds taken to
