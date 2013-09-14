@@ -103,6 +103,9 @@ class BasicLock(object):
         if response[0]['claimId'] == self._claim_id:
             return defer.succeed(True)
         else:
+            if self._log:
+                log.msg('Got different claimId: {}'.format(response[0]['claimId']),
+                        diff_claim_id=response[0]['claimId'], **self._log_kwargs)
             return self.release().addCallback(lambda _: defer.fail(
                 BusyLockError(self._lock_table, self._lock_id)))
 
@@ -158,10 +161,10 @@ class BasicLock(object):
                                  ConsistencyLevel.QUORUM)
 
         def _log_release_time(result):
-            if self._log:
+            if self._log and self._lock_acquired_seconds:
                 seconds = self._reactor.seconds() - self._lock_acquired_seconds
                 self._log.msg('Released lock. Was held for {} seconds'.format(seconds),
-                              lock_held_time=seconds, **self._log_kwargs)
+                              lock_held_time=seconds, result=result, **self._log_kwargs)
             return result
 
         return d.addBoth(_log_release_time)
