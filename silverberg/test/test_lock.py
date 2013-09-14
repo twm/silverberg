@@ -309,7 +309,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = 'lock_uuid'
         log = mock.MagicMock(spec=['msg'])
         clock = task.Clock()
-        clock.advance(1) # to test and avoid intermitent 'Released lock' msg
+        clock.advance(1)  # to test and avoid intermitent 'Released lock' msg
         lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1,
                          retry_wait=3, reactor=clock, log=log)
         self.responses = [
