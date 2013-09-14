@@ -104,8 +104,8 @@ class BasicLock(object):
             return defer.succeed(True)
         else:
             if self._log:
-                log.msg('Got different claimId: {}'.format(response[0]['claimId']),
-                        diff_claim_id=response[0]['claimId'], **self._log_kwargs)
+                self._log.msg('Got different claimId: {}'.format(response[0]['claimId']),
+                              diff_claim_id=response[0]['claimId'], **self._log_kwargs)
             return self.release().addCallback(lambda _: defer.fail(
                 BusyLockError(self._lock_table, self._lock_id)))
 

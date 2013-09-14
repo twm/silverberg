@@ -295,9 +295,11 @@ class BasicLockTest(BaseTestCase):
 
         clock.advance(5)
         self.assertEqual(self.assertFired(d), True)
-        log.msg.assert_called_with('Acquired lock in 5.0 seconds',
-                                   lock_acquire_time=5.0, lock_id=lock_uuid,
-                                   claim_id='claim_uuid')
+        log.msg.assert_has_calls(
+            [mock.call('Got different claimId: wait for it..', diff_claim_id='wait for it..',
+                       lock_id=lock_uuid, claim_id='claim_uuid'),
+             mock.call('Acquired lock in 5.0 seconds', lock_acquire_time=5.0,
+                       lock_id=lock_uuid, claim_id='claim_uuid')])
 
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
     def test_release_logs(self, uuid1):
@@ -307,6 +309,7 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = 'lock_uuid'
         log = mock.MagicMock(spec=['msg'])
         clock = task.Clock()
+        clock.advance(1) # to test and avoid intermitent 'Released lock' msg
         lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1,
                          retry_wait=3, reactor=clock, log=log)
         self.responses = [
@@ -321,7 +324,7 @@ class BasicLockTest(BaseTestCase):
 
         log.msg.assert_called_with('Released lock. Was held for 34.0 seconds',
                                    lock_held_time=34.0, lock_id=lock_uuid,
-                                   claim_id='claim_uuid')
+                                   claim_id='claim_uuid', result=None)
 
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
     def test_lock_acquire_failure_logged(self, uuid1):
