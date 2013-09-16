@@ -155,7 +155,7 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.connection_lost(reason)
 
         mock_log.err.assert_called_once_with(
-            reason, "Lost current connection, reconnecting on demand.",
+            reason, "Lost current connection to 'peer addr', reconnecting on demand.",
             system='OnDemandThriftClient', node='peer addr')
 
     def test_disconnect(self):
