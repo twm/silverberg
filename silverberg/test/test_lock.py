@@ -276,7 +276,8 @@ class BasicLockTest(BaseTestCase):
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
     def test_acquire_logs(self, uuid1):
         """
-        When lock is acquired, it logs with time taken to acquire the log
+        When lock is acquired, it logs with time taken to acquire the log. Different claim ids
+        message is also logged. Intermittent 'release lock' messages are not logged
         """
         lock_uuid = 'lock_uuid'
         log = mock.MagicMock(spec=['msg'])
@@ -309,7 +310,6 @@ class BasicLockTest(BaseTestCase):
         lock_uuid = 'lock_uuid'
         log = mock.MagicMock(spec=['msg'])
         clock = task.Clock()
-        clock.advance(1)  # to test and avoid intermitent 'Released lock' msg
         lock = BasicLock(self.client, self.table_name, lock_uuid, max_retry=1,
                          retry_wait=3, reactor=clock, log=log)
         self.responses = [

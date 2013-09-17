@@ -87,8 +87,8 @@ class BasicLock(object):
 
         self._log = log
         self._log_kwargs = dict(lock_id=self._lock_id, claim_id=self._claim_id)
-        self._lock_acquired_seconds = 0
-        self._acquire_start_seconds = 0
+        self._lock_acquired_seconds = None
+        self._acquire_start_seconds = None
 
     def _read_lock(self, ignored):
         query = 'SELECT * FROM {cf} WHERE "lockId"=:lockId ORDER BY "claimId";'
@@ -161,7 +161,7 @@ class BasicLock(object):
                                  ConsistencyLevel.QUORUM)
 
         def _log_release_time(result):
-            if self._log and self._lock_acquired_seconds:
+            if self._log and self._lock_acquired_seconds is not None:
                 seconds = self._reactor.seconds() - self._lock_acquired_seconds
                 self._log.msg('Released lock. Was held for {} seconds'.format(seconds),
                               lock_held_time=seconds, result=result, **self._log_kwargs)
