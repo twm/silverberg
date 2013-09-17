@@ -142,7 +142,9 @@ class OnDemandThriftClientTests(BaseTestCase):
 
         self.connection_lost(Failure(_TestConnectionDone()))
 
-    def test_connection_lost_uncleanly(self):
+    @mock.patch('silverberg.thrift_client.log')
+    def test_connection_lost_uncleanly(self, mock_log):
+        self.twisted_transport.getPeer.return_value = 'peer addr'
         d = self.client.connection()
 
         self.connect_d.callback(None)
@@ -152,10 +154,9 @@ class OnDemandThriftClientTests(BaseTestCase):
         reason = Failure(_TestConnectionLost())
         self.connection_lost(reason)
 
-        self.assertEqual(
-            self.flushLoggedErrors(),
-            [reason]
-        )
+        mock_log.err.assert_called_once_with(
+            reason, "Lost current connection to 'peer addr', reconnecting on demand.",
+            system='OnDemandThriftClient', node='peer addr')
 
     def test_disconnect(self):
         d1 = self.client.connection()
