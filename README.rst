@@ -30,6 +30,11 @@ Prerequisites:
 Version History
 ===============
 
+- 0.1.5
+    -  Different claim ids are logged when lock is not acquired
+    -  Removed logging of intermittent 'Released lock' messages that occurred when
+       lock acquisition was tried again
+    -  Logging node info when connection to a node is lost in an unclean fashion
 - 0.1.4
     -  LoggingCQLClient logs cql failures as msg
     -  ``null`` values unmarshal correctly now, no matter what the
