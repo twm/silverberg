@@ -144,7 +144,7 @@ class BasicLockTest(BaseTestCase):
         """Lock acquire should write and then read back its write."""
         lock_uuid = uuid.uuid1()
 
-        lock = BasicLock(self.client, self.table_name, lock_uuid)
+        lock = BasicLock(self.client, self.table_name, lock_uuid, reactor=task.Clock())
 
         def _side_effect(*args, **kwargs):
             return defer.succeed([{'lockId': lock._lock_id,
@@ -161,7 +161,6 @@ class BasicLockTest(BaseTestCase):
                       {'lockId': lock._lock_id}, 2)]
 
         self.assertEqual(self.client.execute.call_args_list, expected)
-        lock.release()
 
     def test_acquire_retry(self):
         """BasicLock.acquire will retry max_retry times."""
