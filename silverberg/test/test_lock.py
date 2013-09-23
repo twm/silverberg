@@ -306,10 +306,8 @@ class BasicLockTest(BaseTestCase):
         clock.pump([1] * 5)
         self.assertEqual(self.client.execute.call_count, 7)
         self.assertEqual(
-            self.client.execute.call_args_list[2:-1],
-            [mock.call(('INSERT INTO lock ("lockId","claimId") '
-                        'VALUES (:lockId,:claimId) USING TTL 3;'),
-                       {'lockId': lock._lock_id, 'claimId': lock._claim_id}, 2)] * 4)
+            self.client.execute.call_args_list[2:],
+            [self.get_execute_mock_call(self.insert_query, lock)] * 5)
         lock.release()
 
     def test_does_not_start_claiming_on_failure(self):
