@@ -184,7 +184,7 @@ class BasicLock(object):
 
     def _keep_claiming(self, result):
         """
-        Keep claiming the lock by inserting the claim row every `self._claim_seconds`
+        Keep claiming the lock by inserting the claim row every `self._claim_interval`
         """
 
         def write_lock():
