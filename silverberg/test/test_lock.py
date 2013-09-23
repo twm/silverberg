@@ -30,13 +30,20 @@ class BasicLockTest(BaseTestCase):
     def setUp(self):
         self.client = mock.create_autospec(CQLClient)
         self.table_name = 'lock'
+        self.insert_query = (
+            'INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 3;')
+        self.delete_query = 'DELETE FROM lock WHERE "lockId"=:lockId AND "claimId"=:claimId;'
 
         self.responses = [1]
 
         def _execute(*args, **kwargs):
-            return defer.succeed(self.responses.pop(0))
+            r = self.responses.pop(0)
+            return defer.fail(r) if isinstance(r, Exception) else defer.succeed(r)
 
         self.client.execute.side_effect = _execute
+
+    def get_execute_mock_call(self, query, lock):
+        return mock.call(query, {'lockId': lock._lock_id, 'claimId': lock._claim_id}, 2)
 
     def test__read_lock(self):
         lock_uuid = uuid.uuid1()
@@ -148,12 +155,13 @@ class BasicLockTest(BaseTestCase):
         self.assertEqual(self.assertFired(d), True)
 
         expected = [
-            mock.call('INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 300;',
+            mock.call('INSERT INTO lock ("lockId","claimId") VALUES (:lockId,:claimId) USING TTL 3;',
                       {'lockId': lock._lock_id, 'claimId': lock._claim_id}, 2),
             mock.call('SELECT * FROM lock WHERE "lockId"=:lockId ORDER BY "claimId";',
                       {'lockId': lock._lock_id}, 2)]
 
         self.assertEqual(self.client.execute.call_args_list, expected)
+        lock.release()
 
     def test_acquire_retry(self):
         """BasicLock.acquire will retry max_retry times."""
@@ -274,6 +282,112 @@ class BasicLockTest(BaseTestCase):
         self.client.execute.assert_called_once_with(*expected)
 
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
+    def test_keeps_claiming_on_acquire(self, uuid1):
+        """
+        After acquiring the lock, it is claimed again and again by inserting that claimId
+        every `claim_interval` seconds
+        """
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, 'lock_uuid', reactor=clock,
+                         claim_interval=1)
+        self.responses = [
+            None,   # _write_lock
+            [{'lockId': lock._lock_id, 'claimId': lock._claim_id}],  # _read_lock
+            None,   # _write_lock again
+            None,   # _write_lock again
+            None,   # _write_lock again
+            None,   # _write_lock again
+            None,   # _write_lock again
+            None   # release
+        ]
+
+        lock.acquire()
+
+        clock.pump([1] * 5)
+        self.assertEqual(self.client.execute.call_count, 7)
+        self.assertEqual(
+            self.client.execute.call_args_list[2:-1],
+            [mock.call(('INSERT INTO lock ("lockId","claimId") '
+                        'VALUES (:lockId,:claimId) USING TTL 3;'),
+                       {'lockId': lock._lock_id, 'claimId': lock._claim_id}, 2)] * 4)
+        lock.release()
+
+    def test_does_not_start_claiming_on_failure(self):
+        """
+        If lock is not acquired, then claim is not inserted again
+        """
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, 'lock_uuid', reactor=clock,
+                         claim_interval=1, max_retry=0)
+        self.responses = [
+            None,   # _write_lock
+            [{'lockId': lock._lock_id, 'claimId': 'nope'}],  # _read_lock
+            None    # release lock
+        ]
+        d = lock.acquire()
+        self.failureResultOf(d, BusyLockError)
+        clock.pump([1, 1, 1])
+        self.assertEqual(self.client.execute.call_count, 3)
+        # Also, not calling lock.release() ensures that the LoopingCall was never started
+
+    def test_stops_claiming_on_release(self):
+        """
+        Stops loopingcall that inserts lock on release
+        """
+        clock = task.Clock()
+        lock = BasicLock(self.client, self.table_name, 'lock_uuid', reactor=clock,
+                         claim_interval=1, max_retry=0)
+        self.responses = [
+            None,   # _write_lock
+            [{'lockId': lock._lock_id, 'claimId': lock._claim_id}],  # _read_lock
+            None,   # write_lock again
+            None    # release lock
+        ]
+        lock.acquire()
+        # write and read lock calls were made
+        self.assertEqual(self.client.execute.call_count, 2)
+        # Advance clock and see if lock was inserted again
+        clock.advance(1)
+        self.assertEqual(self.client.execute.call_count, 3)
+        # Release and advance the clock to see if write was made again
+        lock.release()
+        clock.advance(1)
+        self.assertEqual(
+            self.client.execute.call_args_list[-1],
+            self.get_execute_mock_call(self.delete_query, lock))
+
+    def test_logs_msg_on_intermittent_write_failure(self):
+        """
+        If writing lock again fails, it silently logs and continues to write in next
+        interval
+        """
+        clock = task.Clock()
+        log = mock.Mock()
+        lock = BasicLock(self.client, self.table_name, 'lock_uuid', reactor=clock,
+                         claim_interval=1, max_retry=0, log=log)
+        self.responses = [
+            None,   # _write_lock
+            [{'lockId': lock._lock_id, 'claimId': lock._claim_id}],  # _read_lock
+            ValueError('hmph'),   # write_lock again
+            None,   # write_lock again
+            None    # release lock
+        ]
+        lock.acquire()
+        # write and read lock calls were made
+        self.assertEqual(self.client.execute.call_count, 2)
+        # Advance clock and see if lock was inserted again
+        clock.advance(1)
+        self.assertEqual(self.client.execute.call_count, 3)
+        log.msg.assert_called_with('Error inserting claim', reason=mock.ANY,
+                                   lock_id=lock._lock_id, claim_id=lock._claim_id)
+        # Advance the clock and see if it got inserted again
+        clock.advance(1)
+        self.assertEqual(self.client.execute.call_count, 4)
+        self.assertEqual(
+            self.client.execute.call_args_list[-1],
+            self.get_execute_mock_call(self.insert_query, lock))
+
+    @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')
     def test_acquire_logs(self, uuid1):
         """
         When lock is acquired, it logs with time taken to acquire the log. Different claim ids
@@ -315,15 +429,19 @@ class BasicLockTest(BaseTestCase):
         self.responses = [
             None,   # _write_lock
             [{'lockId': lock._lock_id, 'claimId': lock._claim_id}],  # _read_lock
+            None,   # _write_lock
+            None,   # _write_lock
+            None,   # _write_lock
+            None,   # _write_lock
             None   # delete for release lock
         ]
 
         lock.acquire()
-        clock.advance(34)
+        clock.advance(4)
         lock.release()
 
-        log.msg.assert_called_with('Released lock. Was held for 34.0 seconds',
-                                   lock_held_time=34.0, lock_id=lock_uuid,
+        log.msg.assert_called_with('Released lock. Was held for 4.0 seconds',
+                                   lock_held_time=4.0, lock_id=lock_uuid,
                                    claim_id='claim_uuid', result=None)
 
     @mock.patch('silverberg.lock.uuid.uuid1', return_value='claim_uuid')

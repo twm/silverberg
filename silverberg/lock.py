@@ -62,6 +62,9 @@ class BasicLock(object):
     :param ttl: A TTL for the lock.
     :type ttl: int
 
+    :param claim_interval: Interval in seconds to keep reclaiming the lock
+    :type claim_interval: float
+
     :param max_retry: A number of times to retry acquisition of the lock.
     :type max_retry: int
 
@@ -72,13 +75,19 @@ class BasicLock(object):
     :type reactor: twisted.internet.interfaces.IReactorTime
     """
 
-    def __init__(self, client, lock_table, lock_id, ttl=300, max_retry=0,
-                 retry_wait=10, reactor=None, log=None):
+    def __init__(self, client, lock_table, lock_id, ttl=3, claim_interval=1,
+                 max_retry=0, retry_wait=10, reactor=None, log=None):
         self._client = client
         self._lock_table = lock_table
         self._lock_id = lock_id
         self._claim_id = uuid.uuid1()
         self._ttl = ttl
+        # Due to possibly timing issue in Cass, sometimes delete row on quorum is missed
+        # causing lock to be held until TTL (that is was 5 mins earlier). Currently, mitigating
+        # this problem by having low ttl (3 seconds) and inserting lock row every second
+        # claim_interval is interval between subsequent claim row inserts
+        self._claim_interval = claim_interval
+        self._loop = None
         self._max_retry = max_retry
         self._retry_wait = retry_wait
         if reactor is None:
@@ -155,6 +164,10 @@ class BasicLock(object):
         """
         Release the lock.
         """
+        if self._loop:
+            self._loop.stop()
+            self._loop = None
+
         query = 'DELETE FROM {cf} WHERE "lockId"=:lockId AND "claimId"=:claimId;'
         d = self._client.execute(query.format(cf=self._lock_table),
                                  {'lockId': self._lock_id, 'claimId': self._claim_id},
@@ -168,6 +181,25 @@ class BasicLock(object):
             return result
 
         return d.addBoth(_log_release_time)
+
+    def _keep_claiming(self, result):
+        """
+        Keep claiming the lock by inserting the claim row every `self._claim_seconds`
+        """
+
+        def write_lock():
+            d = self._write_lock()
+            d.addErrback(lambda f: (self._log and self._log.msg(
+                'Error inserting claim', reason=f, **self._log_kwargs)))
+            return d
+
+        self._loop = task.LoopingCall(write_lock)
+        self._loop.clock = self._reactor
+        d = self._loop.start(self._claim_interval, False)
+        if self._log:
+            d.addErrback(lambda f: self._log.msg('Error inserting claim',
+                                                 reason=f, **self._log_kwargs))
+        return result
 
     def acquire(self):
         """
@@ -190,6 +222,7 @@ class BasicLock(object):
             d = self._write_lock()
             d.addCallback(self._read_lock)
             d.addCallback(self._verify_lock)
+            d.addCallback(self._keep_claiming)
             if self._log:
                 d.addCallback(log_lock_acquired)
             d.addErrback(lock_not_acquired)
