@@ -49,6 +49,10 @@ class BasicLock(object):
     Cassandra database table with a timeuuid, and then the table is read for
     the given lock, ordered by timeuuid. If the first row is not ours, the
     lock was not acquired, so a write to remove the lock is made.
+    Due to possibly timing issue in Cass, sometimes delete row to remove the lock
+    does not take effect causing lock to be held until TTL (normally 5 mins) expires.
+    Currently, mitigating this problem by having low ttl (normally 3 seconds) and inserting lock
+    row every 1 second (in effect claiming the lock)
 
     :param client: A Cassandra CQL client
     :type client: silverberg.client.CQLClient
@@ -82,10 +86,6 @@ class BasicLock(object):
         self._lock_id = lock_id
         self._claim_id = uuid.uuid1()
         self._ttl = ttl
-        # Due to possibly timing issue in Cass, sometimes delete row on quorum is missed
-        # causing lock to be held until TTL (that is was 5 mins earlier). Currently, mitigating
-        # this problem by having low ttl (3 seconds) and inserting lock row every second
-        # claim_interval is interval between subsequent claim row inserts
         self._claim_interval = claim_interval
         self._loop = None
         self._max_retry = max_retry
