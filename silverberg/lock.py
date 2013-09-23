@@ -182,9 +182,10 @@ class BasicLock(object):
 
         return d.addBoth(_log_release_time)
 
-    def _keep_claiming(self, result):
+    def _hearbeat_lock(self, result):
         """
-        Keep claiming the lock by inserting the claim row every `self._claim_interval`
+        Keep claiming the lock by inserting the claim row every
+        `self._claim_interval` seconds
         """
 
         def write_lock():
@@ -219,7 +220,7 @@ class BasicLock(object):
             d = self._write_lock()
             d.addCallback(self._read_lock)
             d.addCallback(self._verify_lock)
-            d.addCallback(self._keep_claiming)
+            d.addCallback(self._hearbeat_lock)
             if self._log:
                 d.addCallback(log_lock_acquired)
             d.addErrback(lock_not_acquired)
