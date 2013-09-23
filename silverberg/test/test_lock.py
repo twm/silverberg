@@ -308,7 +308,6 @@ class BasicLockTest(BaseTestCase):
         self.assertEqual(
             self.client.execute.call_args_list[2:],
             [self.get_execute_mock_call(self.insert_query, lock)] * 5)
-        lock.release()
 
     def test_does_not_start_claiming_on_failure(self):
         """
@@ -325,8 +324,9 @@ class BasicLockTest(BaseTestCase):
         d = lock.acquire()
         self.failureResultOf(d, BusyLockError)
         clock.pump([1, 1, 1])
-        self.assertEqual(self.client.execute.call_count, 3)
-        # Also, not calling lock.release() ensures that the LoopingCall was never started
+        # Check if calls after first insert is not insert
+        self.assertFalse(any(['INSERT' in call[0]
+                              for call in self.client.execute.call_args_list[1:]]))
 
     def test_stops_claiming_on_release(self):
         """
