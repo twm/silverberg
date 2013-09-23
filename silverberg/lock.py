@@ -195,10 +195,7 @@ class BasicLock(object):
 
         self._loop = task.LoopingCall(write_lock)
         self._loop.clock = self._reactor
-        d = self._loop.start(self._claim_interval, False)
-        if self._log:
-            d.addErrback(lambda f: self._log.msg('Error inserting claim',
-                                                 reason=f, **self._log_kwargs))
+        self._loop.start(self._claim_interval, False)
         return result
 
     def acquire(self):
