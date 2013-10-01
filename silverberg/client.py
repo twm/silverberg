@@ -45,7 +45,7 @@ class CQLClient(object):
     :param user: Username to connect with.
     :type user: str.
 
-    :param password: Username to connect with.
+    :param password: Password to use in conjunction with Username.
     :type password: str.
 
     Upon connecting, the client will authenticate (if paramaters are provided)
