@@ -30,6 +30,8 @@ Prerequisites:
 Version History
 ===============
 
+- 0.1.6
+    - Added disconnect() method to LoggingCQLClient
 - 0.1.5
     -  Different claim ids are logged when lock is not acquired
     -  Removed logging of intermittent 'Released lock' messages that occurred when
