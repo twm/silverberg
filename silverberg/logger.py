@@ -51,3 +51,9 @@ class LoggingCQLClient(object):
             return result
 
         return self._client.execute(query, args, consistency).addBoth(record_time)
+
+    def disconnect(self):
+        """
+        See :py:func:`silverberg.client.CQLClient.disconnect`
+        """
+        return self._client.disconnect()
