@@ -113,9 +113,23 @@ class CQLClient(object):
     def _unmarshal_result(self, schema, raw_rows, _unmarshallers):
         rows = []
 
-        def _unmarshal_val(type, val):
-            if val is not None and type in _unmarshallers:
-                return _unmarshallers[type](val)
+        def _unmarshal_val(vtype, val):
+            if val is None:
+                return
+
+            # Differentiate between regular and collection types
+            # Collection types look like 'ListType(SomeCassandraType)', 
+            # so try split into two parts and check if we can marshal them
+            types = str(vtype).replace(")","").split("(")
+            
+            # Regular type
+            if len(types) == 1 and vtype in _unmarshallers:
+                return _unmarshallers[vtype](val)
+
+            # Collection
+            elif len(types) == 2 and types[0] in _unmarshallers and types[1] in _unmarshallers:
+                return _unmarshallers[types[0]](types[1], val)
+
             # XXX: We do not currently implement the full range of types.
             # So we can not unmarshal all types in which case we should just
             # return the raw bytes.

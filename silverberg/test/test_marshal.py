@@ -25,7 +25,7 @@ from datetime import datetime
 from twisted.trial.unittest import TestCase
 
 from silverberg.marshal import marshal, unmarshal_timestamp, unmarshal_int, \
-    unmarshal_initializable_int, prepare
+    unmarshal_initializable_int, unmarshal_double, prepare
 
 
 class StatementPreparation(TestCase):
@@ -93,3 +93,11 @@ class MarshallingUnmarshallingInteger(TestCase):
 
         # could not be initialized, i.e., None
         self.assertEqual(unmarshal_initializable_int(None), None)
+
+class MarshallingUnmarshallingDouble(TestCase):
+    """
+    Test marshalling and unmarshalling of doubles
+    """
+    def test_unmarshal_double(self):
+        marshaled = '?\xc1\x99\x99\x99\x99\x99\x9a'
+        self.assertEqual(unmarshal_double(marshaled), 0.1375)
