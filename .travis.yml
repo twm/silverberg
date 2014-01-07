@@ -10,12 +10,12 @@ matrix:
         - python: 2.6
 
 install:
-    - sudo apt-get install strace
+    - sudo apt-get install ltrace
     - pip install -r requirements.txt
     - pip install coveralls
 
 script:
-    - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then strace -q coverage run `which trial` silverberg 2>&1; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; ulimit -c unlimited; ltrace -q coverage run `which trial` silverberg 2>&1; fi
     - if [[ $TRAVIS_PYTHON_VERSION != 'pypy' ]]; then coverage run `which trial` silverberg; fi
 
 after_success:
