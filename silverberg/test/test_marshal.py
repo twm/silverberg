@@ -94,6 +94,7 @@ class MarshallingUnmarshallingInteger(TestCase):
         # could not be initialized, i.e., None
         self.assertEqual(unmarshal_initializable_int(None), None)
 
+
 class MarshallingUnmarshallingDouble(TestCase):
     """
     Test marshalling and unmarshalling of doubles

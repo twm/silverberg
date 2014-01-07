@@ -118,10 +118,10 @@ class CQLClient(object):
                 return
 
             # Differentiate between regular and collection types
-            # Collection types look like 'ListType(SomeCassandraType)', 
+            # Collection types look like 'ListType(SomeCassandraType)',
             # so try split into two parts and check if we can marshal them
-            types = str(vtype).replace(")","").split("(")
-            
+            types = str(vtype).replace(")", "").split("(")
+
             # Regular type
             if len(types) == 1 and vtype in _unmarshallers:
                 return _unmarshallers[vtype](val)

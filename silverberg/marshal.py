@@ -103,11 +103,14 @@ _long_packer = struct.Struct('>q')
 
 _double_packer = struct.Struct('>d')
 
+
 def unmarshal_long(bytestr):
     return _long_packer.unpack(bytestr)[0]
 
+
 def unmarshal_double(bytestr):
     return _double_packer.unpack(bytestr)[0]
+
 
 def unmarshal_timestamp(bytestr):
     epoch = unmarshal_long(bytestr)
@@ -116,6 +119,7 @@ def unmarshal_timestamp(bytestr):
 
 def unmarshal_uuid(bytestr):
     return UUID(bytes=bytestr)
+
 
 def unmarshal_list(objtype, bytesstr):
     result = []
@@ -130,7 +134,7 @@ def unmarshal_list(objtype, bytesstr):
         value = unmarshallers[objtype](bytesstr[p:p+length])
         p += length
         result.append(value)
-        
+
     return result
 
 
@@ -138,9 +142,9 @@ unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  ASCII_TYPE:        unmarshal_noop,
                  UTF8_TYPE:         unmarshal_utf8,
                  INTEGER_TYPE:      unmarshal_int,
-                 INTEGER32_TYPE:    unmarshal_int,                 
+                 INTEGER32_TYPE:    unmarshal_int,
                  LONG_TYPE:         unmarshal_long,
-                 DOUBLE_TYPE:       unmarshal_double,                 
+                 DOUBLE_TYPE:       unmarshal_double,
                  UUID_TYPE:         unmarshal_uuid,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
                  TIME_UUID_TYPE:    unmarshal_uuid,
@@ -159,5 +163,3 @@ def decode_bigint(term):
 def __escape_quotes(term):
     assert isinstance(term, (str, unicode))
     return term.replace("\'", "''")
-
-

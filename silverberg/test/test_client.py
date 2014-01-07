@@ -172,16 +172,24 @@ class MockClientTests(BaseTestCase):
     def test_cql_list_deserial(self):
         expected = [{'fff': ['ggg', 'hhh']}]
 
-        mockrow = [ttypes.CqlRow(key='blah', columns=[ttypes.Column(name='fff', value='\x00\x02\x00\x03ggg\x00\x03hhh')])]
-        self.mock_results = ttypes.CqlResult(type=ttypes.CqlResultType.ROWS, 
-                                             rows=mockrow,
-                                             schema=ttypes.CqlMetadata(value_types=
-                                                {'fff': 'org.apache.cassandra.db.marshal.ListType(org.apache.cassandra.db.marshal.UTF8Type)'}))
+        mockrow = [ttypes.CqlRow(key='blah',
+                                 columns=[ttypes.Column(name='fff',
+                                                        value='\x00\x02\x00\x03ggg\x00\x03hhh')])]
+
+        list_type = 'org.apache.cassandra.db.marshal.ListType'
+        text_type = 'org.apache.cassandra.db.marshal.UTF8Type'
+        text_list_type = list_type + '(' + text_type + ')'
+
+        self.mock_results = ttypes.CqlResult(
+            type=ttypes.CqlResultType.ROWS,
+            rows=mockrow,
+            schema=ttypes.CqlMetadata(value_types={'fff': text_list_type}))
         client = CQLClient(self.endpoint, 'blah')
 
         d = client.execute("SELECT * FROM :tablename;", {"tablename": "blah"}, ConsistencyLevel.ONE)
         self.assertEqual(self.assertFired(d), expected)
-        self.client_proto.execute_cql3_query.assert_called_once_with("SELECT * FROM 'blah';", 2, ConsistencyLevel.ONE)
+        self.client_proto.execute_cql3_query.assert_called_once_with("SELECT * FROM 'blah';", 2,
+                                                                     ConsistencyLevel.ONE)
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
     def test_cql_None_not_deserialized(self):
