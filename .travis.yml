@@ -9,6 +9,7 @@ matrix:
     allow_failures:
         - python: 2.6
 
+# rebuild
 before_install:
     - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then sudo add-apt-repository -y ppa:pypy/ppa; fi
     - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then sudo apt-get -y update; fi
