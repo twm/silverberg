@@ -13,6 +13,9 @@ install:
     - pip install -r requirements.txt
     - pip install coveralls
 
+before_script:
+    - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' ]]; then python --version; fi
+
 script:
     - make lint
     - coverage run `which trial` silverberg
