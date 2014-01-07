@@ -9,7 +9,7 @@ matrix:
     allow_failures:
         - python: 2.6
 
-# rebuild again
+# rebuild 5 times
 install:
     - pip install -r requirements.txt
     - pip install coveralls
