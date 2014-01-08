@@ -128,10 +128,10 @@ def unmarshal_list(objtype, bytesstr):
     p = 2
     for n in range(numelements):
         # Two bytes of list element size, as an integer
-        length = unmarshal_int(bytesstr[p:p+2])
+        length = unmarshal_int(bytesstr[p:p + 2])
         p += 2
         # Next 'length' bytes need unmarshalling into the specific type
-        value = unmarshallers[objtype](bytesstr[p:p+length])
+        value = unmarshallers[objtype](bytesstr[p:p + length])
         p += length
         result.append(value)
 
