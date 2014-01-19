@@ -31,7 +31,7 @@ class LoggingCQLClientTests(TestCase):
         """
         Mock CQLClient and log instance
         """
-        self.client = mock.Mock(spec=['execute'])
+        self.client = mock.Mock(spec=['execute', 'disconnect'])
         self.log = mock.Mock(spec=['msg'])
         self.clock = Clock()
         self.logclient = LoggingCQLClient(self.client, self.log, self.clock)
@@ -71,3 +71,12 @@ class LoggingCQLClientTests(TestCase):
                                              seconds_taken=10)
         _, kwargs = self.log.msg.call_args
         self.assertEqual(kwargs['reason'].value, err)
+
+    def test_disconnect(self):
+        """
+        logclient.disconnect() calls internal client's disconnect()
+        """
+        self.client.disconnect.return_value = 'result'
+        d = self.logclient.disconnect()
+        self.client.disconnect.assert_called_once_with()
+        self.assertEquals(d, 'result')
