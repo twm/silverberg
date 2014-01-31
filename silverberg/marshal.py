@@ -33,12 +33,16 @@ BYTES_TYPE = "org.apache.cassandra.db.marshal.BytesType"
 ASCII_TYPE = "org.apache.cassandra.db.marshal.AsciiType"
 UTF8_TYPE = "org.apache.cassandra.db.marshal.UTF8Type"
 INTEGER_TYPE = "org.apache.cassandra.db.marshal.IntegerType"
+INTEGER32_TYPE = "org.apache.cassandra.db.marshal.Int32Type"
 LONG_TYPE = "org.apache.cassandra.db.marshal.LongType"
 UUID_TYPE = "org.apache.cassandra.db.marshal.UUIDType"
 LEXICAL_UUID_TYPE = "org.apache.cassandra.db.marshal.LexicalType"
 TIME_UUID_TYPE = "org.apache.cassandra.db.marshal.TimeUUIDType"
 TIMESTAMP_TYPE = "org.apache.cassandra.db.marshal.DateType"
 COUNTER_TYPE = "org.apache.cassandra.db.marshal.CounterColumnType"
+DOUBLE_TYPE = "org.apache.cassandra.db.marshal.DoubleType"
+
+LIST_TYPE = "org.apache.cassandra.db.marshal.ListType"
 
 
 def prepare(query, params):
@@ -97,9 +101,15 @@ def unmarshal_initializable_int(bytestr):
 
 _long_packer = struct.Struct('>q')
 
+_double_packer = struct.Struct('>d')
+
 
 def unmarshal_long(bytestr):
     return _long_packer.unpack(bytestr)[0]
+
+
+def unmarshal_double(bytestr):
+    return _double_packer.unpack(bytestr)[0]
 
 
 def unmarshal_timestamp(bytestr):
@@ -111,16 +121,36 @@ def unmarshal_uuid(bytestr):
     return UUID(bytes=bytestr)
 
 
+def unmarshal_list(objtype, bytesstr):
+    result = []
+    # First two bytes are an integer of list size
+    numelements = unmarshal_int(bytesstr[:2])
+    p = 2
+    for n in range(numelements):
+        # Two bytes of list element size, as an integer
+        length = unmarshal_int(bytesstr[p:p + 2])
+        p += 2
+        # Next 'length' bytes need unmarshalling into the specific type
+        value = unmarshallers[objtype](bytesstr[p:p + length])
+        p += length
+        result.append(value)
+
+    return result
+
+
 unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  ASCII_TYPE:        unmarshal_noop,
                  UTF8_TYPE:         unmarshal_utf8,
                  INTEGER_TYPE:      unmarshal_int,
+                 INTEGER32_TYPE:    unmarshal_int,
                  LONG_TYPE:         unmarshal_long,
+                 DOUBLE_TYPE:       unmarshal_double,
                  UUID_TYPE:         unmarshal_uuid,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
                  TIME_UUID_TYPE:    unmarshal_uuid,
                  TIMESTAMP_TYPE:    unmarshal_timestamp,
-                 COUNTER_TYPE:      unmarshal_initializable_int}
+                 COUNTER_TYPE:      unmarshal_initializable_int,
+                 LIST_TYPE:         unmarshal_list}
 
 
 def decode_bigint(term):
