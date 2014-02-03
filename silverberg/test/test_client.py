@@ -307,7 +307,7 @@ class MockTestingClientTests(MockClientTests):
         The transport exposed is the underlying twisted transport, if it exists
         """
         client = TestingCQLClient(self.endpoint, 'meh')
-        self.assertIsNone(client.transport)  # has not connected yet
+        self.assertEqual(client.transport, None)  # has not connected yet
         self.assertFired(client.describe_version())
         self.assertIs(client.transport, self.twisted_transport)
 

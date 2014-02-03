@@ -104,7 +104,7 @@ class BasicLock(object):
             return defer.succeed(True)
         else:
             if self._log:
-                self._log.msg('Got different claimId: {}'.format(response[0]['claimId']),
+                self._log.msg('Got different claimId: {0}'.format(response[0]['claimId']),
                               diff_claim_id=response[0]['claimId'], **self._log_kwargs)
             return self.release().addCallback(lambda _: defer.fail(
                 BusyLockError(self._lock_table, self._lock_id)))
@@ -163,7 +163,7 @@ class BasicLock(object):
         def _log_release_time(result):
             if self._log and self._lock_acquired_seconds is not None:
                 seconds = self._reactor.seconds() - self._lock_acquired_seconds
-                self._log.msg('Released lock. Was held for {} seconds'.format(seconds),
+                self._log.msg('Released lock. Was held for {0} seconds'.format(seconds),
                               lock_held_time=seconds, result=result, **self._log_kwargs)
             return result
 
@@ -182,7 +182,7 @@ class BasicLock(object):
         def log_lock_acquired(result):
             self._lock_acquired_seconds = self._reactor.seconds()
             seconds = self._lock_acquired_seconds - self._acquire_start_seconds
-            self._log.msg('Acquired lock in {} seconds'.format(seconds),
+            self._log.msg('Acquired lock in {0} seconds'.format(seconds),
                           lock_acquire_time=seconds, **self._log_kwargs)
             return result
 
@@ -207,7 +207,7 @@ class BasicLock(object):
             if self._log:
                 seconds = self._reactor.seconds() - self._acquire_start_seconds
                 self._log.msg(
-                    'Could not acquire lock in {} seconds due to {}'.format(seconds, failure),
+                    'Could not acquire lock in {0} seconds due to {1}'.format(seconds, failure),
                     lock_acquire_fail_time=seconds, reason=failure, **self._log_kwargs)
             return failure
 
