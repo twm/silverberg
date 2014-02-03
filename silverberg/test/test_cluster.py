@@ -42,7 +42,7 @@ class RoundRobinCassandraClusterTests(BaseTestCase):
         def _CQLClient(*args, **kwargs):
             c = mock.Mock(CQLClient)
             self.clients.append(c)
-            c.execute.return_value = defer.succeed('exec_ret{}'.format(len(self.clients)))
+            c.execute.return_value = defer.succeed('exec_ret{0}'.format(len(self.clients)))
             return c
 
         self.CQLClient.side_effect = _CQLClient
