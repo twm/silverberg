@@ -182,8 +182,11 @@ class CQLClient(object):
         prep_query = prepare(query, args)
 
         def _execute(client):
-            return client.execute_cql3_query(prep_query,
-                                             ttypes.Compression.NONE, consistency)
+            exec_d = client.execute_cql3_query(prep_query,
+                                               ttypes.Compression.NONE, consistency)
+            cancellable_d = defer.Deferred(lambda d: self.disconnect())
+            exec_d.chainDeferred(cancellable_d)
+            return cancellable_d
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:
