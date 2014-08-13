@@ -54,6 +54,42 @@ class MockClientTests(BaseTestCase):
 
         self.endpoint.connect.side_effect = _connect
 
+    def test_disconnect_on_cancel(self):
+        """
+        If allowed, cancellation of running query will also try to disconnect
+        the TCP connection
+        """
+        self.client_proto.execute_cql3_query.side_effect = lambda *_: defer.Deferred()
+        client = CQLClient(self.endpoint, 'abc', disconnect_on_cancel=True)
+        client.disconnect = mock.Mock()
+
+        d = client.execute('query', {}, ConsistencyLevel.ONE)
+
+        self.assertNoResult(d)
+        self.assertFalse(client.disconnect.called)
+
+        d.cancel()
+        self.failureResultOf(d, defer.CancelledError)
+        client.disconnect.assert_called_one_with()
+
+    def test_no_disconnect_on_cancel(self):
+        """
+        If not given, cancellation of running query should not try to disconnect
+        the TCP connection
+        """
+        self.client_proto.execute_cql3_query.side_effect = lambda *_: defer.Deferred()
+        client = CQLClient(self.endpoint, 'abc', disconnect_on_cancel=False)
+        client.disconnect = mock.Mock()
+
+        d = client.execute('query', {}, ConsistencyLevel.ONE)
+
+        self.assertNoResult(d)
+        self.assertFalse(client.disconnect.called)
+
+        d.cancel()
+        self.failureResultOf(d, defer.CancelledError)
+        self.assertFalse(client.disconnect.called)
+
     def test_disconnect(self):
         """
         When disconnect is called, the on demand thrift client is disconnected
