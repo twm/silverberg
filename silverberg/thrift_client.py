@@ -109,7 +109,7 @@ class OnDemandThriftClient(object):
         return d
 
     def _notify_on_connect(self):
-        d = Deferred(lambda d: self.disconnect())
+        d = Deferred()
         self._waiting_on_connect.append(d)
         return d
 
