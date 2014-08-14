@@ -72,6 +72,24 @@ class MockClientTests(BaseTestCase):
         self.failureResultOf(d, defer.CancelledError)
         client.disconnect.assert_called_one_with()
 
+    def test_disconnect_on_cancel_returns_correct_value(self):
+        """
+        with disconnect_on_cancel=True, the value from execute_cql3_query is
+        returned before cancellation
+        """
+        exec_d = defer.Deferred()
+        self.client_proto.execute_cql3_query.side_effect = lambda *_: exec_d
+        client = CQLClient(self.endpoint, 'abc', disconnect_on_cancel=True)
+        client.disconnect = mock.Mock()
+
+        d = client.execute('query', {}, ConsistencyLevel.ONE)
+
+        self.assertNoResult(d)
+        self.assertFalse(client.disconnect.called)
+        exec_d.callback(self.mock_results)
+        self.assertEqual(self.successResultOf(d), 1)
+        self.assertFalse(client.disconnect.called)
+
     def test_no_disconnect_on_cancel(self):
         """
         If not given, cancellation of running query should not try to disconnect
