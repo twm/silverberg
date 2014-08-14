@@ -21,7 +21,7 @@ Client API library for the Silverberg Twisted Cassandra CQL interface.
 from silverberg.cassandra import Cassandra
 from silverberg.cassandra import ttypes
 
-from twisted.internet.defer import succeed
+from twisted.internet.defer import succeed, Deferred
 
 from silverberg.marshal import prepare, unmarshallers
 
@@ -48,6 +48,9 @@ class CQLClient(object):
     :param password: Password to use in conjunction with Username.
     :type password: str.
 
+    :param bool disconnect_on_cancel: Should the underlying TCP connection be disconnected
+    when execute deferred is cancelled?
+
     Upon connecting, the client will authenticate (if paramaters are provided)
     and obtain the keyspace definition so that it can de-serialize properly.
 
@@ -57,12 +60,14 @@ class CQLClient(object):
     different methods and the password code isn't heavily tested.
     """
 
-    def __init__(self, cass_endpoint, keyspace, user=None, password=None):
+    def __init__(self, cass_endpoint, keyspace, user=None, password=None,
+                 disconnect_on_cancel=False):
         self._client = OnDemandThriftClient(cass_endpoint, Cassandra.Client)
 
         self._keyspace = keyspace
         self._user = user
         self._password = password
+        self._disconnect_on_cancel = disconnect_on_cancel
 
     def _set_keyspace(self, client):
         d = client.set_keyspace(self._keyspace)
@@ -182,8 +187,14 @@ class CQLClient(object):
         prep_query = prepare(query, args)
 
         def _execute(client):
-            return client.execute_cql3_query(prep_query,
-                                             ttypes.Compression.NONE, consistency)
+            exec_d = client.execute_cql3_query(prep_query,
+                                               ttypes.Compression.NONE, consistency)
+            if self._disconnect_on_cancel:
+                cancellable_d = Deferred(lambda d: self.disconnect())
+                exec_d.chainDeferred(cancellable_d)
+                return cancellable_d
+            else:
+                return exec_d
 
         def _proc_results(result):
             if result.type == ttypes.CqlResultType.ROWS:

@@ -31,11 +31,14 @@ class RoundRobinCassandraCluster(object):
 
     :param str user: Optional username.
     :param str password: Optional password.
+    :param bool disconnect_on_cancel: Should TCP connection be disconnected on
+                cancellation of running query? Defaults to False
     """
 
-    def __init__(self, seed_endpoints, keyspace, user=None, password=None):
+    def __init__(self, seed_endpoints, keyspace, user=None, password=None,
+                 disconnect_on_cancel=False):
         self._seed_clients = [
-            CQLClient(endpoint, keyspace, user, password)
+            CQLClient(endpoint, keyspace, user, password, disconnect_on_cancel)
             for endpoint in seed_endpoints
         ]
         self._client_idx = 0
