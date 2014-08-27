@@ -39,6 +39,7 @@ UUID_TYPE = "org.apache.cassandra.db.marshal.UUIDType"
 LEXICAL_UUID_TYPE = "org.apache.cassandra.db.marshal.LexicalType"
 TIME_UUID_TYPE = "org.apache.cassandra.db.marshal.TimeUUIDType"
 TIMESTAMP_TYPE = "org.apache.cassandra.db.marshal.DateType"
+NEW_TIMESTAMP_TYPE = "org.apache.cassandra.db.marshal.TimestampType"
 COUNTER_TYPE = "org.apache.cassandra.db.marshal.CounterColumnType"
 DOUBLE_TYPE = "org.apache.cassandra.db.marshal.DoubleType"
 
@@ -149,6 +150,7 @@ unmarshallers = {BYTES_TYPE:        unmarshal_noop,
                  LEXICAL_UUID_TYPE: unmarshal_uuid,
                  TIME_UUID_TYPE:    unmarshal_uuid,
                  TIMESTAMP_TYPE:    unmarshal_timestamp,
+                 NEW_TIMESTAMP_TYPE: unmarshal_timestamp,
                  COUNTER_TYPE:      unmarshal_initializable_int,
                  LIST_TYPE:         unmarshal_list}
 
