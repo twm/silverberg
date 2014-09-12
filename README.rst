@@ -30,6 +30,8 @@ Prerequisites:
 Version History
 ===============
 
+- 0.1.9
+    - (harii) Adding new timestamp type from Cassandra 2.0
 - 0.1.8
     - Option to disconnect TCP connection when cancelling running query
 - 0.1.7
