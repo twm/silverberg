@@ -127,7 +127,7 @@ class MockClientTests(BaseTestCase):
 
         self.client_proto.set_keyspace.assert_called_once_with('blah')
 
-        creds = {'user': 'groucho', 'password': 'swordfish'}
+        creds = {'username': 'groucho', 'password': 'swordfish'}
         authreq = ttypes.AuthenticationRequest(creds)
         self.client_proto.login.assert_called_once_with(authreq)
 
