@@ -74,7 +74,7 @@ class CQLClient(object):
         return d.addCallback(lambda _: client)
 
     def _login(self, client):
-        creds = {'user': self._user, 'password': self._password}
+        creds = {'username': self._user, 'password': self._password}
         authreq = ttypes.AuthenticationRequest(creds)
         d = client.login(authreq)
         d.addCallback(lambda _: client)
