@@ -24,8 +24,9 @@ from datetime import datetime
 
 from twisted.trial.unittest import TestCase
 
-from silverberg.marshal import marshal, unmarshal_timestamp, unmarshal_int, \
-    unmarshal_initializable_int, unmarshal_double, prepare
+from silverberg.marshal import (
+    marshal, unmarshal_timestamp, unmarshal_int, unmarshal_bool,
+    unmarshal_initializable_int, unmarshal_double, prepare)
 
 
 class StatementPreparation(TestCase):
@@ -102,3 +103,12 @@ class MarshallingUnmarshallingDouble(TestCase):
     def test_unmarshal_double(self):
         marshaled = '?\xc1\x99\x99\x99\x99\x99\x9a'
         self.assertEqual(unmarshal_double(marshaled), 0.1375)
+
+
+class MarshallingUnmarshallingBoolean(TestCase):
+    """
+    Test marshalling and unmarshalling of boolean
+    """
+    def test_unmarshal(self):
+        self.assertEqual(unmarshal_bool('\x01'), True)
+        self.assertEqual(unmarshal_bool('\x00'), False)

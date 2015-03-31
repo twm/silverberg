@@ -30,6 +30,7 @@ __all__ = ['prepare', 'marshal', 'unmarshal_noop', 'unmarshallers']
 _param_re = re.compile(r"(?<!strategy_options)(:[a-zA-Z_][a-zA-Z0-9_]*)", re.M)
 
 BYTES_TYPE = "org.apache.cassandra.db.marshal.BytesType"
+BOOLEAN_TYPE = "org.apache.cassandra.db.marshal.BooleanType"
 ASCII_TYPE = "org.apache.cassandra.db.marshal.AsciiType"
 UTF8_TYPE = "org.apache.cassandra.db.marshal.UTF8Type"
 INTEGER_TYPE = "org.apache.cassandra.db.marshal.IntegerType"
@@ -81,6 +82,10 @@ def marshal(term):
 
 def unmarshal_noop(bytestr):
     return bytestr
+
+
+def unmarshal_bool(bytestr):
+    return bytestr == "\x01"
 
 
 def unmarshal_utf8(bytestr):
@@ -140,6 +145,7 @@ def unmarshal_list(objtype, bytesstr):
 
 
 unmarshallers = {BYTES_TYPE:        unmarshal_noop,
+                 BOOLEAN_TYPE:      unmarshal_bool,
                  ASCII_TYPE:        unmarshal_noop,
                  UTF8_TYPE:         unmarshal_utf8,
                  INTEGER_TYPE:      unmarshal_int,
