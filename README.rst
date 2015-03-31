@@ -30,6 +30,8 @@ Prerequisites:
 Version History
 ===============
 
+- 0.1.11
+    - Unmarshalling bool type
 - 0.1.10
     - (vvoznesensky) Fixed authentication
 - 0.1.9

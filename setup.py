@@ -16,7 +16,7 @@ def getPackages(base):
 
 setup(
     name='silverberg',
-    version='0.1.10',
+    version='0.1.11',
     description='Twisted CQL Cassandra Client',
     classifiers=[
         'Development Status :: 4 - Beta',
