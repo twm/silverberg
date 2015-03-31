@@ -14,7 +14,7 @@
 
 import mock
 
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed, Deferred, CancelledError
 from twisted.internet.protocol import Protocol
 from twisted.internet.error import ConnectError, ConnectionLost, ConnectionDone
 
@@ -191,6 +191,9 @@ class OnDemandThriftClientTests(BaseTestCase):
         self.assertFailed(d3, ClientDisconnecting)
 
     def test_disconnect_while_connecting(self):
+        """
+        Disconnection causes cancellation of a pending connection attempt.
+        """
         d1 = self.client.connection()
         d2 = self.client.disconnect()
 
@@ -199,9 +202,7 @@ class OnDemandThriftClientTests(BaseTestCase):
             len(self.twisted_transport.loseConnection.mock_calls), 0,
             "loseConnection should not be called since not connected")
 
-        self.connect_d.callback(None)
-
-        self.assertFired(d1)
+        self.assertFailed(d1, CancelledError)
 
     def test_disconnect_while_disconnecting(self):
         self.client.connection()
