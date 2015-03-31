@@ -100,6 +100,7 @@ class OnDemandThriftClient(object):
         self._state = _State.NOT_CONNECTED
         self._transport = None
         self._current_client = None
+        self._connecting = None
         self._waiting_on_connect = deque()
         self._waiting_on_disconnect = deque()
 
@@ -131,6 +132,7 @@ class OnDemandThriftClient(object):
                     node=node)
 
     def _connection_made(self, client):
+        self._connecting = None
         self._state = _State.CONNECTED
         self._current_client = client
 
@@ -141,6 +143,7 @@ class OnDemandThriftClient(object):
             d.callback(self._current_client)
 
     def _connection_failed(self, reason):
+        self._connecting = None
         self._state = _State.NOT_CONNECTED
         self._current_client = None
         self._transport = None
@@ -174,7 +177,7 @@ class OnDemandThriftClient(object):
             hd.addCallback(lambda _: client)
             return hd
 
-        d = self._endpoint.connect(self._factory)
+        d = self._connecting = self._endpoint.connect(self._factory)
         d.addCallback(_unwrap_client)
         if handshake is not None:
             d.addCallback(_do_handshake)
@@ -215,6 +218,7 @@ class OnDemandThriftClient(object):
             self._transport.loseConnection()
             return self._notify_on_disconnect()
         if self._state == _State.CONNECTING:
+            self._connecting.cancel()
             return fail(ClientConnecting())
         elif self._state == _State.NOT_CONNECTED:
             return succeed(None)
