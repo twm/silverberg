@@ -35,14 +35,6 @@ class ClientDisconnecting(Exception):
     """
 
 
-class ClientConnecting(Exception):
-    """
-    An error that occurs when OnDemandThriftClient.disconnect is called
-    while the client is in a CONNECTING state.
-
-    """
-
-
 class _LossNotifyingWrapperProtocol(Protocol):
     def __init__(self, wrapped, on_connectionLost):
         self.wrapped = wrapped
@@ -219,7 +211,7 @@ class OnDemandThriftClient(object):
             return self._notify_on_disconnect()
         if self._state == _State.CONNECTING:
             self._connecting.cancel()
-            return fail(ClientConnecting())
+            return succeed(None)
         elif self._state == _State.NOT_CONNECTED:
             return succeed(None)
         elif self._state == _State.DISCONNECTING:

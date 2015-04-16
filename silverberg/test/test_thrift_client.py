@@ -23,7 +23,6 @@ from twisted.python.failure import Failure
 from silverberg.thrift_client import (
     OnDemandThriftClient,
     ClientDisconnecting,
-    ClientConnecting,
     _LossNotifyingWrapperProtocol,
     _ThriftClientFactory
 )
@@ -197,7 +196,7 @@ class OnDemandThriftClientTests(BaseTestCase):
         d1 = self.client.connection()
         d2 = self.client.disconnect()
 
-        self.assertFailed(d2, ClientConnecting)
+        self.assertFired(d2)
         self.assertEqual(
             len(self.twisted_transport.loseConnection.mock_calls), 0,
             "loseConnection should not be called since not connected")
